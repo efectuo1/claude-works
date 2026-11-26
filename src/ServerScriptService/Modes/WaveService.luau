@@ -350,14 +350,16 @@ function WaveService.new(deps: Dependencies)
 		portal.CanCollide = false
 		portal.Transparency = 1
 		portal.Size = Vector3.new(2, 2, 2)
-		portal.Position = arenaCenter() + Vector3.new(-8 + (index - 1) * 8, -2, 26) -- a la altura de los pies, para que el prompt alcance
+		-- Dentro del suelo de madera y lejos de los pilares (radio 26): los portales en z=26 quedaban sobre un pilar.
+		portal.Position = arenaCenter() + Vector3.new(-6 + (index - 1) * 6, -2, 12)
 		portal.Parent = workspace
 
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.ActionText = "Entrar: " .. LABELS[key]
 		prompt.ObjectText = "Oleadas"
 		prompt.HoldDuration = 0.4
-		prompt.MaxActivationDistance = 14
+		prompt.MaxActivationDistance = 16
+		prompt.RequiresLineOfSight = false -- un pilar o el suelo no deben esconder el portal
 		prompt.Parent = portal
 		prompt.Triggered:Connect(function(player: Player)
 			local result = service.enter(player.UserId, key)
@@ -374,14 +376,15 @@ function WaveService.new(deps: Dependencies)
 	exitPart.CanCollide = false
 	exitPart.Transparency = 1
 	exitPart.Size = Vector3.new(2, 2, 2)
-	exitPart.Position = arenaCenter() + Vector3.new(0, -2, 34)
+	exitPart.Position = arenaCenter() + Vector3.new(0, -2, -12) -- lado opuesto a los portales, dentro del suelo
 	exitPart.Parent = workspace
 
 	local exitPrompt = Instance.new("ProximityPrompt")
 	exitPrompt.ActionText = "Salir de la arena"
 	exitPrompt.ObjectText = "Oleadas"
 	exitPrompt.HoldDuration = 0.4
-	exitPrompt.MaxActivationDistance = 14
+	exitPrompt.MaxActivationDistance = 16
+	exitPrompt.RequiresLineOfSight = false
 	exitPrompt.Parent = exitPart
 	exitPrompt.Triggered:Connect(function(player: Player)
 		leave(player.UserId)
