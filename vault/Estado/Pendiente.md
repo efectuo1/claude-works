@@ -40,3 +40,5 @@ actualizado: 2026-11-26
 ## Actualización (sesión de jefes y animaciones)
 - Hecho sin probar: Capitán de Ceniza y Tirano de Brasa (jefes de oleadas), prueba de cobertura de oleadas, textos flotantes con rebote, easing de efectos y de desaparición de mobs.
 - Pendiente: animaciones de personaje (requiere Blender y subir IDs desde Creator Hub); acceso a GitHub (token falló en esta sesión); probar todo en Studio.
+
+- Recompensa de victoria en oleadas: hecha (rewardBoss) y sin probar. Pendiente: aplicar pases a la recompensa de jefe.

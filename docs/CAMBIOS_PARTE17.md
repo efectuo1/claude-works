@@ -73,3 +73,10 @@ Pendiente de probar en Studio: que el jefe aparece con su plantilla, su barra de
 - Onda de choque ("shockwave"): cuando está pegado al objetivo, golpea con 1.3 veces su daño y hace una pausa de 0.6 segundos. Limitación: por ahora solo golpea al jugador más cercano, porque el controlador solo recibe un objetivo. Si se quiere área real, hace falta una dependencia que devuelva todos los jugadores en radio.
 - `ContentValidator` rechaza habilidades desconocidas y habilidades sin `abilityCooldown` positivo. Tests añadidos.
 - Sin probar en Studio. La velocidad de embestida y las pausas son valores de partida para ajustar al verlas.
+
+## Recompensa de victoria en oleadas (añadido)
+
+- Al superar la oleada 20 (victoria), cada jugador que siga dentro recibe la recompensa de jefe: `Rewards.rollBoss` con su rango (oro en rango y gemas garantizadas).
+- Nuevo `WalletService.rewardBoss(userId)`, conectado en Bootstrap como `grantBoss` a WaveService.
+- Limitación: la recompensa de jefe no aplica los pases de oro o gemas (`rollBoss` no recibe perks). Ajustar si se quiere.
+- Sin probar en Studio.

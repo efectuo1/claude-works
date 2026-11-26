@@ -47,6 +47,16 @@ function WalletService.new(deps: Dependencies)
 		return apply(userId, grant, "mob")
 	end
 
+	-- Recompensa de jefe (p. ej. victoria en oleadas): oro en rango y gemas garantizadas.
+	function service.rewardBoss(userId: number): Result.Result<Rewards.Grant>
+		local data = deps.getProfile(userId)
+		if data == nil then
+			return Result.err("profile_not_loaded")
+		end
+		local grant = Rewards.rollBoss(Rewards.rankOrDefault(data.rank), deps.rng)
+		return apply(userId, grant, "boss")
+	end
+
 	function service.rewardQuest(userId: number, questId: string): Result.Result<Rewards.Grant>
 		local data = deps.getProfile(userId)
 		if data == nil then

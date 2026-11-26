@@ -293,6 +293,12 @@ if world ~= nil then
 				warn(`[Oleadas] gemas no entregadas a {userId}: {granted.error}`)
 			end
 		end,
+		grantBoss = function(userId: number)
+			local granted = wallet.rewardBoss(userId)
+			if not granted.ok then
+				warn(`[Oleadas] recompensa de jefe no entregada a {userId}: {granted.error}`)
+			end
+		end,
 		notify = function(userId: number, payload: { [string]: any })
 			local player = Players:GetPlayerByUserId(userId)
 			if player ~= nil then

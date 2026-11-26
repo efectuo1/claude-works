@@ -28,6 +28,7 @@ export type Dependencies = {
 	templates: Instance,
 	mobsFolder: Instance,
 	grantGems: (userId: number, gems: number) -> (),
+	grantBoss: (userId: number) -> (),
 	notify: (userId: number, payload: { [string]: any }) -> (),
 }
 
@@ -237,6 +238,9 @@ function WaveService.new(deps: Dependencies)
 		end
 		current.mobs = {}
 		for userId in current.players do
+			if result == "victoria" then
+				deps.grantBoss(userId)
+			end
 			deps.notify(userId, { kind = "end", result = result, wave = current.session.wave })
 			teleport(userId, HUB_POSITION)
 		end
