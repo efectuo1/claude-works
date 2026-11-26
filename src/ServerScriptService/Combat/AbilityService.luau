@@ -14,13 +14,17 @@ local TestConfig = require(Shared.Definitions.TestConfig)
 local Result = require(Shared.Util.Result)
 local Types = require(Shared.Types)
 
+export type TargetLookup = {
+	get: (targetId: string) -> Types.CombatTarget?,
+	near: (origin: Vector3, radius: number) -> { Types.CombatTarget },
+}
+
 export type Dependencies = {
 	now: () -> number,
 	allowRequest: (userId: number) -> boolean,
 	getLevel: (userId: number) -> number?,
 	getPosition: (userId: number) -> Vector3?,
-	findTarget: (targetId: string) -> Types.CombatTarget?,
-	findTargetsNear: (origin: Vector3, radius: number) -> { Types.CombatTarget },
+	registryFor: (userId: number) -> TargetLookup,
 	schedule: (seconds: number, fn: () -> ()) -> (),
 }
 
@@ -119,6 +123,7 @@ function AbilityService.new(deps: Dependencies): AbilityService
 			return Result.err("cooldown")
 		end
 
+		local registry = deps.registryFor(userId)
 		local origin = deps.getPosition(userId)
 		if origin == nil then
 			return Result.err("no_character")
@@ -131,7 +136,7 @@ function AbilityService.new(deps: Dependencies): AbilityService
 		end
 
 		if definition.kind == "area" then
-			local targets = deps.findTargetsNear(origin, definition.radius)
+			local targets = registry.near(origin, definition.radius)
 			if #targets == 0 then
 				if noTargetAllowed then
 					setReadyAt(userId, definition.id, now + definition.cooldown)
@@ -148,7 +153,7 @@ function AbilityService.new(deps: Dependencies): AbilityService
 		end
 
 		local targetId = request.targetId :: string
-		local target = deps.findTarget(targetId)
+		local target = registry.get(targetId)
 		if target == nil then
 			return Result.err("invalid_target")
 		end
@@ -165,7 +170,7 @@ function AbilityService.new(deps: Dependencies): AbilityService
 			-- Los golpes siguientes buscan el objetivo otra vez: si murió antes, ya no suman.
 			for index = 2, definition.hits do
 				deps.schedule((index - 1) * MULTI_HIT_GAP, function()
-					local again = deps.findTarget(targetId)
+					local again = registry.get(targetId)
 					if again ~= nil then
 						again.takeDamage(definition.damage, userId)
 					end

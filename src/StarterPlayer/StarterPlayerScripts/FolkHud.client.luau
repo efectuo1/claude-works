@@ -183,7 +183,7 @@ local EXCHANGE_ERRORS: { [string]: string } = {
 }
 
 local function buildShopWindow(): ScreenGui
-	local W, Hh = 640, 790
+	local W, Hh = 640, 850
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "FolkTienda"
 	gui.ResetOnSpawn = false
@@ -211,6 +211,16 @@ local function buildShopWindow(): ScreenGui
 
 	H.text(stage, "Saldo", "", W / 2, 96, 26, 5)
 
+	-- Pestañas de sección: TODO, CAMBIO, PASES, FRUTAS
+	local tabBtn: { [string]: any } = {}
+	local tabW, tabGap = 140, 10
+	for i, name in { "todo", "cambio", "pases", "frutas" } do
+		local x = (W - (4 * tabW + 3 * tabGap)) / 2 + (i - 1) * (tabW + tabGap)
+		local b = H.button(stage, "Tab_" .. name, x, 130, tabW, 46, 12, M.COLOR.purple, 6, { action = "tab", offer = name, lip = 5 })
+		tabBtn[name] = b
+		H.text(b, "Label", string.upper(name), tabW / 2, 23, 22, b.ZIndex + 1)
+	end
+
 	local function exchangeCard(y: number, name: string, title: string, rate: string, pal: { Color3 }, direction: string)
 		local cw = W - 60
 		local card = H.rect(stage, name, 30, y, cw, 150, 16, 2)
@@ -227,13 +237,15 @@ local function buildShopWindow(): ScreenGui
 			H.text(b, "Label", label, bw / 2, 22, 28, b.ZIndex + 1)
 		end
 	end
-	exchangeCard(130, "ExOro", "ORO A GEMAS", "200 oro = 1 gema", M.COLOR.gold, "goldToGems")
-	exchangeCard(300, "ExGemas", "GEMAS A ORO", "1 gema = 200 oro", M.COLOR.green, "gemsToGold")
+	exchangeCard(196, "ExOro", "ORO A GEMAS", "200 oro = 1 gema", M.COLOR.gold, "goldToGems")
+	exchangeCard(366, "ExGemas", "GEMAS A ORO", "1 gema = 200 oro", M.COLOR.green, "gemsToGold")
 
-	H.text(stage, "SecPases", "PASES", W / 2, 468, 30, 5)
+	local secPases = H.text(stage, "SecPases", "PASES", W / 2, 528, 30, 5)
+	local paseNodes: { any } = { secPases }
 	for i, item in Shop.GAMEPASSES do
-		local y = 500 + (i - 1) * 62
+		local y = 560 + (i - 1) * 62
 		local row = H.rect(stage, "Pase" .. item.id, 30, y, W - 60, 52, 14, 2)
+		table.insert(paseNodes, row)
 		H.grad(row, M.COLOR.pink[1], M.COLOR.pink[3])
 		H.ink(row, 4)
 		if item.id == "doble_oro" then
@@ -243,10 +255,30 @@ local function buildShopWindow(): ScreenGui
 		local b = H.button(row, "Comprar", W - 60 - 170, 6, 160, 40, 12, M.COLOR.lime, 5, { action = "pass", offer = item.id })
 		H.text(b, "Label", "R$ " .. item.price, 80, 20, 26, b.ZIndex + 1)
 	end
-	H.text(stage, "SecCodigos", "CÓDIGOS", W / 2, 706, 30, 5)
-	H.text(stage, "CodigosSoon", SOON, W / 2, 744, 26, 5)
+	local secCodigos = H.text(stage, "SecCodigos", "CÓDIGOS", W / 2, 766, 30, 5)
+	local codigoSoon = H.text(stage, "CodigosSoon", SOON, W / 2, 804, 26, 5)
+	local codigoNodes: { any } = { secCodigos, codigoSoon }
+	local exchangeCards: { any } = { stage:FindFirstChild("ExOro"), stage:FindFirstChild("ExGemas") }
+	local frutasSoon = H.text(stage, "FrutasSoon", "Frutas y jutsus llegan en una próxima parte", W / 2, 430, 26, 5)
+
+	local function showTab(tab: string)
+		local todo = tab == "todo"
+		local cambio = todo or tab == "cambio"
+		local pases = todo or tab == "pases"
+		for _, n in exchangeCards do n.Visible = cambio end
+		for _, n in paseNodes do n.Visible = pases end
+		for _, n in codigoNodes do n.Visible = todo end
+		frutasSoon.Visible = tab == "frutas"
+		for id, b in tabBtn do
+			local label = b:FindFirstChild("Label") :: TextLabel
+			label.Text = if id == tab then "> " .. string.upper(id) .. " <" else string.upper(id)
+		end
+	end
 
 	M.live(gui, {
+		tab = function(offer: any)
+			showTab(tostring(offer))
+		end,
 		pass = function(offer: any)
 			for _, item in Shop.GAMEPASSES do
 				if item.id == offer then
@@ -284,6 +316,7 @@ local function buildShopWindow(): ScreenGui
 			exchangeRemote:FireServer({ direction = direction, amount = amount })
 		end,
 	})
+	showTab("todo")
 	return gui
 end
 
