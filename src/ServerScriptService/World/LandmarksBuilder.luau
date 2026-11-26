@@ -4,7 +4,6 @@
 	Geometría provisional y carteles. Se rehace en cada arranque. La lógica va en sus servicios.
 ]]
 
-local ModeHouses = require(script.Parent.ModeHouses)
 local MapLayout = require(script.Parent.MapLayout)
 
 local LandmarksBuilder = {}
@@ -108,7 +107,6 @@ function LandmarksBuilder.build(height: HeightAt)
 	folder:ClearAllChildren()
 	buildShop(folder, height)
 	buildArena(folder, height)
-	ModeHouses.build(folder, height)
 end
 
 return LandmarksBuilder
