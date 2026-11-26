@@ -41,18 +41,22 @@ local function makeHarness(targets: { [string]: Fake })
 		getPosition = function(_userId: number): Vector3?
 			return Vector3.zero
 		end,
-		findTarget = function(id: string)
-			return targets[id]
-		end,
-		findTargetsNear = function(origin: Vector3, radius: number)
-			local found = {}
-			for _, fake in targets do
-				local delta = fake.getPosition() - origin
-				if Vector3.new(delta.X, 0, delta.Z).Magnitude <= radius then
-					table.insert(found, fake)
-				end
-			end
-			return found
+		registryFor = function(_userId: number)
+			return {
+				get = function(id: string)
+					return targets[id]
+				end,
+				near = function(origin: Vector3, radius: number)
+					local found = {}
+					for _, fake in targets do
+						local delta = fake.getPosition() - origin
+						if Vector3.new(delta.X, 0, delta.Z).Magnitude <= radius then
+							table.insert(found, fake)
+						end
+					end
+					return found
+				end,
+			}
 		end,
 		schedule = function(seconds: number, fn: () -> ())
 			table.insert(pending, { at = clock + seconds, fn = fn })

@@ -25,6 +25,7 @@ local KillLootHandler = require(ServerScriptService.Drops.KillLootHandler)
 local DomainEvents = require(ServerScriptService.Events.DomainEvents)
 local InventoryService = require(ServerScriptService.Inventory.InventoryService)
 local MobRegistry = require(ServerScriptService.Mobs.MobRegistry)
+local InstanceRouter = require(ServerScriptService.Instances.InstanceRouter)
 local WorldBootstrap = require(ServerScriptService.World.WorldBootstrap)
 local WorldBuilder = require(ServerScriptService.World.WorldBuilder)
 local QuestService = require(ServerScriptService.Quests.QuestService)
@@ -364,6 +365,7 @@ end
 
 -- Combate.
 local castLimiter = RateLimiter.new(10, 1, serverNow)
+local instances = InstanceRouter.new(MobRegistry.overworld)
 local abilities = AbilityService.new({
 	now = serverNow,
 	allowRequest = castLimiter.allow,
@@ -372,8 +374,7 @@ local abilities = AbilityService.new({
 		return if data then data.level else nil
 	end,
 	getPosition = getPosition,
-	findTarget = MobRegistry.get,
-	findTargetsNear = MobRegistry.near,
+	registryFor = instances.registryFor,
 	schedule = function(seconds: number, fn: () -> ())
 		task.delay(seconds, fn)
 	end,
