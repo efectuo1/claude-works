@@ -367,6 +367,26 @@ function WaveService.new(deps: Dependencies)
 		end)
 	end
 
+	-- Salida: un portal delante de la arena, junto a los de entrada. Solo actúa a quien está dentro.
+	local exitPart = Instance.new("Part")
+	exitPart.Name = "Salida_Oleadas"
+	exitPart.Anchored = true
+	exitPart.CanCollide = false
+	exitPart.Transparency = 1
+	exitPart.Size = Vector3.new(2, 2, 2)
+	exitPart.Position = arenaCenter() + Vector3.new(0, -2, 34)
+	exitPart.Parent = workspace
+
+	local exitPrompt = Instance.new("ProximityPrompt")
+	exitPrompt.ActionText = "Salir de la arena"
+	exitPrompt.ObjectText = "Oleadas"
+	exitPrompt.HoldDuration = 0.4
+	exitPrompt.MaxActivationDistance = 14
+	exitPrompt.Parent = exitPart
+	exitPrompt.Triggered:Connect(function(player: Player)
+		leave(player.UserId)
+	end)
+
 	Players.PlayerRemoving:Connect(function(player: Player)
 		leave(player.UserId)
 	end)

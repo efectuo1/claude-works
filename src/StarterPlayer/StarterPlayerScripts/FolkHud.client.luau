@@ -556,16 +556,73 @@ if walletFx ~= nil then
 end
 
 -- Modalidad de oleadas: marcador y avisos de la partida.
+-- Ventana de modalidades: lista de jefes con su requisito. Se pide al servidor al abrirla y al subir de nivel.
+local modesNotice = screens.FolkModos
+local refreshModesWindow: () -> ()
+refreshModesWindow = function()
+	local lines = { "Oleadas: 20 oleadas y un jefe final. Entra por el portal de la arena." }
+	local okList, list = false, nil
+	if bossList ~= nil then
+		local remote = bossList :: RemoteFunction
+		okList, list = pcall(function()
+			return remote:InvokeServer()
+		end)
+	end
+	if okList and type(list) == "table" and #list > 0 then
+		table.insert(lines, "Jefes:")
+		for _, boss in list do
+			local state = if boss.locked then `nivel {boss.minLevel} (bloqueado)` else "disponible"
+			table.insert(lines, `{boss.name}: {state}`)
+		end
+	else
+		table.insert(lines, "Jefes: no disponibles ahora.")
+	end
+	if modesNotice ~= nil then
+		setLabel(modesNotice.Root.Stage, "Body", table.concat(lines, "\n"))
+	end
+end
+if modesNotice ~= nil then
+	modesNotice:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if modesNotice.Enabled then
+			task.spawn(refreshModesWindow)
+		end
+	end)
+end
+player:GetAttributeChangedSignal("Level"):Connect(function()
+	task.spawn(refreshModesWindow)
+end)
+task.spawn(refreshModesWindow)
+
+-- Oleadas y jefes comparten el canal WaveFx. Los mensajes de jefe llevan el campo "boss".
 local WAVE_ERRORS: { [string]: string } = {
 	ya_estas_dentro = "Ya estás dentro de la arena",
 	arena_llena = "La arena está llena (4 jugadores)",
 	faltan_plantillas = "La arena todavía no está lista",
+	jefe_desconocido = "Ese jefe no existe",
+	dificultad_invalida = "Esa dificultad no existe",
+	nivel_insuficiente = "Te falta nivel para este jefe",
+	otro_jefe_en_curso = "Ya hay otro jefe en curso",
+	partida_llena = "La sala está llena (4 jugadores)",
 }
 local waveFx = if remotes then remotes:FindFirstChild("WaveFx") :: RemoteEvent? else nil
+local bossList = if remotes then remotes:FindFirstChild("BossList") :: RemoteFunction? else nil
 if waveFx ~= nil then
 	waveFx.OnClientEvent:Connect(function(payload: any)
 		if payload.kind == "wave" then
 			waveLabel.Text = `Oleada {payload.wave} / {payload.total}` .. (if payload.boss then "  ·  JEFE" else "")
+		elseif payload.kind == "end" and payload.boss ~= nil then
+			-- Fin de una sala de jefes.
+			waveLabel.Text = ""
+			if payload.result == "victoria" then
+				showNotice("¡Jefe derrotado!", "Recompensa de jefe entregada.")
+			elseif payload.result == "derrota" then
+				showNotice("Derrota", "Nadie quedó en la sala. El jefe sigue vivo.")
+			elseif payload.result == "salida" then
+				showNotice("Has salido", "Vuelves a la entrada de jefes.")
+			else
+				showNotice("Partida cancelada", "Hubo un problema con la sala de jefes.")
+			end
+			task.spawn(refreshModesWindow)
 		elseif payload.kind == "end" then
 			waveLabel.Text = ""
 			if payload.result == "victoria" then
@@ -582,5 +639,6 @@ if waveFx ~= nil then
 		end
 	end)
 end
+
 
 print("[FolkHud] lista")

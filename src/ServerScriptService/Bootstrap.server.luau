@@ -96,6 +96,13 @@ local rankUpRemote = createRemote("RankUp") -- jugador -> servidor: pedir subir 
 local exchangeRemote = createRemote("ExchangeCurrency") -- jugador -> servidor: cambio oro/gemas
 local waveFxRemote = createRemote("WaveFx") -- servidor -> jugador: avisos de la modalidad de oleadas
 
+-- Lista de jefes con requisito para la ventana de modalidades. El cliente la pide al abrirla.
+-- El manejador se asigna más abajo, cuando existen perfiles y el servicio de jefes.
+local jefesService: any = nil
+local bossListRemote = Instance.new("RemoteFunction")
+bossListRemote.Name = "BossList"
+bossListRemote.Parent = remotes
+
 -- Presencia: quién sigue en el servidor y quién se está yendo.
 local presence = PlayerPresence.new(function(userId: number)
 	return Players:GetPlayerByUserId(userId)
@@ -116,6 +123,25 @@ local profiles = ProfileService.new({
 		end
 	end,
 })
+
+bossListRemote.OnServerInvoke = function(player: Player)
+	if jefesService == nil then
+		return {}
+	end
+	local data = profiles.get(player.UserId)
+	local level = if data then data.level else 0
+	local list = {}
+	for _, boss in jefesService.list() do
+		local def = MobDefs[boss.mobId]
+		table.insert(list, {
+			id = boss.id,
+			name = if def then def.displayName else boss.id,
+			minLevel = boss.minLevel,
+			locked = level < boss.minLevel,
+		})
+	end
+	return list
+end
 
 -- Nivel visible: el servidor lo escribe como atributo; el cliente solo lo lee.
 local function setLevelAttribute(userId: number, level: number)
@@ -312,7 +338,7 @@ if world ~= nil then
 	})
 
 	-- Modo jefes: la sala y sus portales están detrás de la arena (ver la posición en Studio).
-	JefesService.new({
+	jefesService = JefesService.new({
 		router = instances,
 		events = events,
 		controller = world.controller,
@@ -320,6 +346,7 @@ if world ~= nil then
 		mobsFolder = world.mobsFolder,
 		bossPosition = Vector3.new(0, 6, 220),
 		portalPosition = Vector3.new(0, 6, 180),
+		exitPosition = Vector3.new(0, 6, 166),
 		getLevel = function(userId: number): number?
 			local data = profiles.get(userId)
 			return if data then data.level else nil
@@ -339,15 +366,25 @@ if world ~= nil then
 	})
 end
 
--- Ruleta del hub: el premio se elige en servidor. La entrega real (monedas, frutas, jutsus) aún no existe:
--- por ahora el premio se muestra y se registra en la consola.
+-- Ruleta del hub: el premio se elige en servidor y se entrega aquí.
+-- Oro y gemas se entregan de verdad. Frutas y jutsus no tienen catálogo todavía: el giro no se gasta.
 local rouletteLimiter = RateLimiter.new(2, 1, serverNow)
 local roulette = RouletteService.new({
 	now = serverNow,
 	allowRequest = rouletteLimiter.allow,
 	random = math.random,
-	deliver = function(userId, prize)
-		print(`[Ruleta] {userId} obtuvo {prize.label} (entrega pendiente)`)
+	deliver = function(userId: number, prize): Result.Result<boolean>
+		local granted
+		if prize.kind == "gem" then
+			granted = wallet.grantGems(userId, prize.amount, "ruleta")
+		elseif prize.kind == "gold" then
+			granted = wallet.grantGold(userId, prize.amount, "ruleta")
+		else
+			return Result.err("premio_pendiente")
+		end
+		if not granted.ok then
+			return Result.err(granted.error)
+		end
 		return Result.ok(true)
 	end,
 	cooldownSeconds = 5,

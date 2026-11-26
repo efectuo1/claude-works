@@ -27,6 +27,8 @@ local ERROR_TEXT: { [string]: string } = {
 	cooldown = "La ruleta aún se está enfriando",
 	rate_limited = "Espera un momento",
 	sin_premios = "La ruleta no tiene premios",
+	premio_pendiente = "Ese premio llegará en una próxima parte. Gira otra vez",
+	profile_not_loaded = "Tu progreso todavía se está cargando",
 }
 
 local gui = Instance.new("ScreenGui")

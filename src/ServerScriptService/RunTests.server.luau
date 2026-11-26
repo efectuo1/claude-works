@@ -33,6 +33,7 @@ local suiteNames = {
 	"WaveSession.spec",
 	"DropLuck.spec",
 	"Contribution.spec",
+	"InstanceRouter.spec",
 }
 
 local tests = ServerScriptService:WaitForChild("Tests")

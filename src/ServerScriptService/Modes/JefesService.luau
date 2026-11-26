@@ -28,6 +28,7 @@ export type Dependencies = {
 	mobsFolder: Instance,
 	bossPosition: Vector3,
 	portalPosition: Vector3,
+	exitPosition: Vector3, -- a dónde vuelve quien sale de la sala de jefes
 	getLevel: (userId: number) -> number?,
 	grantBoss: (userId: number) -> (),
 	notify: (userId: number, payload: { [string]: any }) -> (),
@@ -240,6 +241,7 @@ function JefesService.new(deps: Dependencies)
 			deps.router.leave(userId)
 		end
 		deps.notify(userId, { kind = "end", result = "salida", boss = current.boss.id })
+		teleport(userId, deps.exitPosition)
 		if countPlayers(current) == 0 then
 			finish(current, "derrota")
 		end
@@ -273,6 +275,26 @@ function JefesService.new(deps: Dependencies)
 			end)
 		end
 	end
+
+	-- Salida: un portal al lado de la entrada. Solo actúa a quien está dentro de una sala.
+	local exitPart = Instance.new("Part")
+	exitPart.Name = "SalidaJefes"
+	exitPart.Anchored = true
+	exitPart.CanCollide = false
+	exitPart.Transparency = 1
+	exitPart.Size = Vector3.new(2, 2, 2)
+	exitPart.Position = deps.portalPosition + Vector3.new(0, -2, -6)
+	exitPart.Parent = workspace
+
+	local exitPrompt = Instance.new("ProximityPrompt")
+	exitPrompt.ActionText = "Salir de la sala"
+	exitPrompt.ObjectText = "Jefes"
+	exitPrompt.HoldDuration = 0.4
+	exitPrompt.MaxActivationDistance = 14
+	exitPrompt.Parent = exitPart
+	exitPrompt.Triggered:Connect(function(player: Player)
+		service.leave(player.UserId)
+	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		service.leave(player.UserId)

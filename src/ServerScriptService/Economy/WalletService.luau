@@ -89,6 +89,11 @@ function WalletService.new(deps: Dependencies)
 		return apply(userId, { gold = 0, gems = gems }, source)
 	end
 
+	-- Premio de oro directo (p. ej. ruleta). Mismo camino que cualquier recompensa, para que la interfaz reciba el aviso.
+	function service.grantGold(userId: number, gold: number, source: string): Result.Result<Rewards.Grant>
+		return apply(userId, { gold = gold, gems = 0 }, source)
+	end
+
 	-- Cambio oro <-> gemas. Valida y aplica de una vez (sin hilos, así que es atómico).
 	function service.exchange(userId: number, direction: string, amount: number): Result.Result<Rewards.Balance>
 		local data = deps.getProfile(userId)
