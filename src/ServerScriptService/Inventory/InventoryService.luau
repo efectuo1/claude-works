@@ -12,6 +12,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 export type InventoryService = {
 	add: (userId: number, itemId: string, quantity: number) -> Result.Result<number>,
+	remove: (userId: number, itemId: string, quantity: number) -> Result.Result<number>,
 	count: (userId: number, itemId: string) -> number,
 	export: (userId: number) -> { [string]: number },
 	restore: (userId: number, stacks: { [string]: number }) -> Result.Result<boolean>,
@@ -51,6 +52,25 @@ function InventoryService.new(items: { [string]: Types.ItemDef }): InventoryServ
 		end
 		userStacks[itemId] = nextTotal
 		return Result.ok(nextTotal)
+	end
+
+	-- Quita unidades de un ítem. Devuelve lo que queda. No deja cantidades negativas.
+	function service.remove(userId: number, itemId: string, quantity: number): Result.Result<number>
+		if not isValidQuantity(quantity) then
+			return Result.err("quantity_invalid")
+		end
+		local userStacks = stacks[userId]
+		local current = if userStacks then userStacks[itemId] or 0 else 0
+		if current < quantity then
+			return Result.err("item_insuficiente")
+		end
+		local left = current - quantity
+		if left == 0 then
+			userStacks[itemId] = nil
+		else
+			userStacks[itemId] = left
+		end
+		return Result.ok(left)
 	end
 
 	function service.count(userId: number, itemId: string): number

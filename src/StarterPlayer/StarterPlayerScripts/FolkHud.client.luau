@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Progression = require(ReplicatedStorage.Shared.Util.Progression)
 local Rewards = require(ReplicatedStorage.Shared.Util.Rewards)
 local Shop = require(ReplicatedStorage.Shared.Definitions.Shop)
+local Potions = require(ReplicatedStorage.Shared.Definitions.Potions)
 local MarketplaceService = game:GetService("MarketplaceService")
 -- Si el módulo de imágenes no está, el HUD sigue funcionando con sus iconos de respaldo.
 local okAssets, UiAssets = pcall(function()
@@ -31,6 +32,9 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
 local walletFx = if remotes then remotes:FindFirstChild("WalletFx") :: RemoteEvent? else nil
 local rankUpRemote = if remotes then remotes:FindFirstChild("RankUp") :: RemoteEvent? else nil
 local exchangeRemote = if remotes then remotes:FindFirstChild("ExchangeCurrency") :: RemoteEvent? else nil
+local usePotionRemote = if remotes then remotes:FindFirstChild("UsePotion") :: RemoteEvent? else nil
+local buyPotionRemote = if remotes then remotes:FindFirstChild("BuyPotion") :: RemoteEvent? else nil
+local backpackRemote = if remotes then remotes:FindFirstChild("BackpackList") :: RemoteFunction? else nil
 if walletFx == nil or rankUpRemote == nil then
 	warn("[FolkHud] no encontré los remotos de economía: la interfaz se muestra, pero sin ganancias en vivo")
 end
@@ -213,9 +217,9 @@ local function buildShopWindow(): ScreenGui
 
 	-- Pestañas de sección: TODO, CAMBIO, PASES, FRUTAS
 	local tabBtn: { [string]: any } = {}
-	local tabW, tabGap = 140, 10
-	for i, name in { "todo", "cambio", "pases", "frutas" } do
-		local x = (W - (4 * tabW + 3 * tabGap)) / 2 + (i - 1) * (tabW + tabGap)
+	local tabW, tabGap = 118, 8
+	for i, name in { "todo", "cambio", "pases", "frutas", "pociones" } do
+		local x = (W - (5 * tabW + 4 * tabGap)) / 2 + (i - 1) * (tabW + tabGap)
 		local b = H.button(stage, "Tab_" .. name, x, 130, tabW, 46, 12, M.COLOR.purple, 6, { action = "tab", offer = name, lip = 5 })
 		tabBtn[name] = b
 		H.text(b, "Label", string.upper(name), tabW / 2, 23, 22, b.ZIndex + 1)
@@ -239,6 +243,24 @@ local function buildShopWindow(): ScreenGui
 	end
 	exchangeCard(196, "ExOro", "ORO A GEMAS", "200 oro = 1 gema", M.COLOR.gold, "goldToGems")
 	exchangeCard(366, "ExGemas", "GEMAS A ORO", "1 gema = 200 oro", M.COLOR.green, "gemsToGold")
+
+	-- Pociones: se compran con gemas y van a la mochila. Solo se ven en su pestaña.
+	local potionNodes: { any } = {}
+	local function potionCard(y: number, potionId: string, title: string, rate: string, pal: { Color3 })
+		local def = Potions[potionId]
+		local price = if def then def.gemPrice else 0
+		local cw = W - 60
+		local card = H.rect(stage, "Pocion_" .. potionId, 30, y, cw, 150, 16, 2)
+		H.grad(card, pal[1], pal[3])
+		H.ink(card, 4)
+		H.text(card, "Titulo", title, cw / 2, 30, 34, 4)
+		H.text(card, "Tasa", rate, cw / 2, 70, 24, 4)
+		local b = H.button(card, "Comprar", (cw - 380) / 2, 96, 380, 44, 12, M.COLOR.lime, 5, { action = "buyPotion", offer = potionId })
+		H.text(b, "Label", "COMPRAR · " .. price .. " gemas", 190, 22, 26, b.ZIndex + 1)
+		table.insert(potionNodes, card)
+	end
+	potionCard(196, "xp_potion_10", "XP x2 · 10 MIN", "Multiplica tu XP mientras dura", M.COLOR.purple)
+	potionCard(366, "xp_potion_15", "XP x2 · 15 MIN", "Multiplica tu XP mientras dura", M.COLOR.blue)
 
 	local secPases = H.text(stage, "SecPases", "PASES", W / 2, 528, 30, 5)
 	local paseNodes: { any } = { secPases }
@@ -267,6 +289,7 @@ local function buildShopWindow(): ScreenGui
 		local pases = todo or tab == "pases"
 		for _, n in exchangeCards do n.Visible = cambio end
 		for _, n in paseNodes do n.Visible = pases end
+		for _, n in potionNodes do n.Visible = tab == "pociones" end
 		for _, n in codigoNodes do n.Visible = todo end
 		frutasSoon.Visible = tab == "frutas"
 		for id, b in tabBtn do
@@ -276,6 +299,11 @@ local function buildShopWindow(): ScreenGui
 	end
 
 	M.live(gui, {
+		buyPotion = function(offer: any)
+			if buyPotionRemote ~= nil then
+				buyPotionRemote:FireServer({ itemId = tostring(offer) })
+			end
+		end,
 		tab = function(offer: any)
 			showTab(tostring(offer))
 		end,
@@ -328,6 +356,72 @@ local function addSection(name: string, title: string, body: string?)
 	screens[name] = buildNotice(name, title, body or SOON)
 end
 screens.FolkTienda = shopGui
+
+-- Mochila (kit): el contenido sale del servidor. El kit no se actualiza solo, así que se reconstruye
+-- al cambiar el inventario, conservando si estaba abierta.
+local POTION_ERRORS: { [string]: string } = {
+	no_es_pocion = "Ese objeto no se puede usar",
+	sin_pocion = "No te quedan pociones de ese tipo",
+	gemas_insuficientes = "Te faltan gemas",
+	demasiadas_peticiones = "Espera un momento y vuelve a probar",
+	payload_invalido = "La petición no es válida",
+	profile_not_loaded = "Tu progreso todavía se está cargando",
+	stack_full = "No cabe más de ese objeto",
+	item_insuficiente = "Ya no te queda ese objeto",
+}
+
+local function fetchBackpack(): { any }
+	local list: { any } = {}
+	if backpackRemote ~= nil then
+		local remote = backpackRemote :: RemoteFunction
+		local ok, result = pcall(function()
+			return remote:InvokeServer()
+		end)
+		if ok and type(result) == "table" then
+			list = result
+		end
+	end
+	return list
+end
+
+local function buildBackpack(): ScreenGui
+	local items: { any } = {}
+	for _, it in fetchBackpack() do
+		table.insert(items, { id = it.id, name = it.name, rarity = it.rarity, art = M.ART.star, desc = it.desc, stats = it.stats, use = it.use })
+	end
+	if #items == 0 then
+		table.insert(items, { id = "vacio", name = "Vacía", rarity = "Common", art = M.ART.star, desc = "Aún no tienes objetos.", stats = {}, use = "INFO" })
+	end
+	local gui = M.backpack(pg, { sections = { { name = "Objetos", icon = M.ART.star, color = M.COLOR.green, items = items } } })
+	M.live(gui, {
+		use = function()
+			local id = gui:GetAttribute("Selected")
+			if type(id) ~= "string" then
+				return
+			end
+			local holder = gui.Root.Stage.Window.Scroll.Content:FindFirstChild("Item" .. id)
+			local tile = if holder then holder:FindFirstChild("Tile") else nil
+			-- Solo las pociones tienen USAR; el resto de objetos no hace nada todavía.
+			if tile ~= nil and tile:GetAttribute("UseLabel") == "USAR" and usePotionRemote ~= nil then
+				usePotionRemote:FireServer({ itemId = id })
+			end
+		end,
+	})
+	return gui
+end
+
+local function refreshBackpack()
+	local old = screens.FolkMochila
+	local wasOpen = old ~= nil and old.Enabled
+	local gui = buildBackpack()
+	gui.Enabled = wasOpen
+	screens.FolkMochila = gui
+	if old ~= nil then
+		old:Destroy()
+	end
+end
+screens.FolkMochila = buildBackpack()
+screens.FolkMochila.Enabled = false
 addSection("FolkMejoras", "Mejoras", "Las mejoras de frutas y jutsus llegarán en una próxima parte.\nMientras tanto, sube de rango para desbloquear más ganancias.")
 addSection("FolkIndice", "Índice", "Tienda: cambia oro y gemas, y mira los pases.\nRango: sube de nivel para multiplicar tus ganancias.\nModos: oleadas en la arena.\nAjustes y frutas: pronto.")
 addSection("FolkFrutas", "Frutas y jutsus", "Por ahora combates con las habilidades 1 a 4, o con los botones de abajo.\nLas frutas se añadirán más adelante.")
@@ -342,6 +436,7 @@ local left = M.hud(pg, {
 		{ label = "RANGO", icon = M.ART.rebirth, color = M.COLOR.hudPurple, opens = "FolkRango" },
 		{ label = "MEJORAS", icon = UiAssets.get("mejoras") or M.ART.star, color = M.COLOR.lime, opens = "FolkMejoras" },
 		{ label = "ÍNDICE", icon = UiAssets.get("indice") or M.ART.star, color = M.COLOR.hudBlue, opens = "FolkIndice" },
+			{ label = "MOCHILA", icon = UiAssets.get("mochila") or M.ART.star, color = M.COLOR.amber, opens = "FolkMochila" },
 	},
 })
 local right = M.hud(pg, {
@@ -440,6 +535,21 @@ H.ink(gemCoin, 3)
 coinImage(goldCoin, "coin")
 coinImage(gemCoin, "gem")
 H.text(walletCard, "Gemas", "0", 72, 81, 34, 4, nil, "left")
+
+-- Pociones activas: multiplicador y tiempo restante. El servidor lo publica como atributos.
+local boostLabel = H.text(design, "Boost", "", 1568, 352, 28, 12)
+task.spawn(function()
+	while true do
+		local mult = attributeNumber("XpBoostMult")
+		local left = attributeNumber("XpBoostEnd") - workspace:GetServerTimeNow()
+		if mult > 1 and left > 0 then
+			boostLabel.Text = `XP x{mult} · {string.format("%d:%02d", math.floor(left / 60), math.floor(left % 60))}`
+		else
+			boostLabel.Text = ""
+		end
+		task.wait(0.5)
+	end
+end)
 
 local function setText(parent: Instance, name: string, value: string)
 	setLabel(parent, name, value)
@@ -543,6 +653,20 @@ if walletFx ~= nil then
 				floatText(1568, 196, "¡Cambio hecho!", M.COLOR.lime[1])
 			else
 				showNotice("No se pudo cambiar", EXCHANGE_ERRORS[payload.error] or "Inténtalo de nuevo")
+			end
+		elseif payload.kind == "potion" then
+			if payload.ok then
+				floatText(1568, 236, "¡Poción activa!", M.COLOR.gold[1])
+				task.spawn(refreshBackpack)
+			else
+				showNotice("No se pudo usar", POTION_ERRORS[payload.error] or "Inténtalo de nuevo")
+			end
+		elseif payload.kind == "potion_buy" then
+			if payload.ok then
+				floatText(1568, 236, "¡Comprado!", M.COLOR.lime[1])
+				task.spawn(refreshBackpack)
+			else
+				showNotice("No se pudo comprar", POTION_ERRORS[payload.error] or "Inténtalo de nuevo")
 			end
 		elseif payload.kind == "rank" then
 			if payload.ok then

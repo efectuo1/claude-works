@@ -89,6 +89,23 @@ function WalletService.new(deps: Dependencies)
 		return apply(userId, { gold = 0, gems = gems }, source)
 	end
 
+	-- Gasta gemas (p. ej. compra de pociones). No toca nada si no alcanzan.
+	function service.spendGems(userId: number, gems: number): Result.Result<boolean>
+		local data = deps.getProfile(userId)
+		if data == nil then
+			return Result.err("profile_not_loaded")
+		end
+		if gems < 1 or gems % 1 ~= 0 then
+			return Result.err("cantidad_invalida")
+		end
+		if data.gems < gems then
+			return Result.err("gemas_insuficientes")
+		end
+		data.gems -= gems
+		deps.onChanged(userId, data)
+		return Result.ok(true)
+	end
+
 	-- Premio de oro directo (p. ej. ruleta). Mismo camino que cualquier recompensa, para que la interfaz reciba el aviso.
 	function service.grantGold(userId: number, gold: number, source: string): Result.Result<Rewards.Grant>
 		return apply(userId, { gold = gold, gems = 0 }, source)

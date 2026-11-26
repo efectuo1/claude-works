@@ -99,12 +99,17 @@ local function fadeAndRemove(model: Model)
 	end)
 end
 
+-- Mueve al jugador. Si su personaje no está listo, avisa en la consola en vez de fallar en silencio.
 local function teleport(userId: number, position: Vector3)
 	local player = Players:GetPlayerByUserId(userId)
 	local character = if player then player.Character else nil
-	if character ~= nil then
-		character:PivotTo(CFrame.new(position))
+	local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+	if character == nil or root == nil then
+		warn(`[Oleadas] no se pudo mover a {userId}: sin personaje listo`)
+		return
 	end
+	character:PivotTo(CFrame.new(position))
+	root.AssemblyLinearVelocity = Vector3.zero
 end
 
 function WaveService.new(deps: Dependencies)

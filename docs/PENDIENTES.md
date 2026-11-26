@@ -3,6 +3,11 @@
 Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se ha podido probar fuera de Roblox Studio.
 
 ## Hecho en esta entrega
+- Pociones de XP x2 (10 y 15 min): objetos del inventario. Usar una gasta una de la mochila (USAR). Compra con gemas en la pestaña POCIONES de la tienda.
+- Temporizador de pociones (PotionTimer): del mismo tipo se suman; de otro tipo, espera en cola. Suite PotionTimer.spec.
+- Mochila: ventana del kit con el inventario real, reconstruida al cambiar.
+- Indicador "XP x2 · m:ss" en pantalla mientras dura la poción.
+- Teletransporte a oleadas y jefes: avisa en la consola si el personaje no está listo, en vez de fallar en silencio.
 - MobRegistry como fábrica (MobRegistry.new) con API estática conservada.
 - AbilityService usa registryFor(userId) en lugar de registros globales.
 - InstanceRouter: enruta cada jugador a su partida. Tiene suite de pruebas (InstanceRouter.spec).
@@ -33,6 +38,9 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - [ ] Asset "203785492 no coincide con el tipo": no viene de este repositorio. Buscarlo en el kit o en los decals de Studio.
 
 ## Pendiente de diseño (acordado, sin construir)
+- [ ] Multiplicadores de XP que faltan en la fórmula: pase y dificultad. Solo se aplica el de pociones.
+- [ ] Pociones de daño y suerte (el doc las deja para más adelante).
+- [ ] Precio en gemas de las pociones (ahora provisional: 40 y 55).
 - [ ] Nombres definitivos de los jefes (ahora se ven los ids internos en los portales).
 - [ ] Niveles mínimos de jefes (ahora provisionales: 5 y 10).
 - [ ] Jefes de One Piece y Naruto, con sus modelos.
@@ -44,6 +52,8 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - [ ] Mejoras, Ajustes, códigos y pases de Robux (IDs de pase todavía en 0).
 
 ## Pendiente técnico
+- [ ] Las pociones activas no se guardan entre sesiones (estado en memoria).
+- [ ] Revisar en Studio: el portal de salida de jefes y las posiciones de los portales de la arena.
 - [ ] InstanceManager no está conectado: las modalidades usan el enrutador directamente. Conectarlo cuando haya más de una instancia a la vez.
 - [ ] Tests para JefesService. Necesitan mocks de Mob/MobController; por ahora no hay suite.
 - [ ] Los tipos MobRegistry.Registry e InstanceRouter.InstanceRouter se importan desde otros módulos: si Studio marca error, revisar primero aquí.

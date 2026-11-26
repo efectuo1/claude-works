@@ -34,6 +34,7 @@ local suiteNames = {
 	"DropLuck.spec",
 	"Contribution.spec",
 	"InstanceRouter.spec",
+	"PotionTimer.spec",
 }
 
 local tests = ServerScriptService:WaitForChild("Tests")

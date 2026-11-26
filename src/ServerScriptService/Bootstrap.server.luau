@@ -38,6 +38,8 @@ local PlayerPresence = require(ServerScriptService.Players.PlayerPresence)
 local PlayerLifecycle = require(ServerScriptService.Players.PlayerLifecycle)
 local ProgressionService = require(ServerScriptService.Progression.ProgressionService)
 local WalletService = require(ServerScriptService.Economy.WalletService)
+local PotionService = require(ServerScriptService.Potions.PotionService)
+local Potions = require(Shared.Definitions.Potions)
 local Rewards = require(ReplicatedStorage.Shared.Util.Rewards)
 local Contribution = require(ReplicatedStorage.Shared.Util.Contribution)
 local Shop = require(ReplicatedStorage.Shared.Definitions.Shop)
@@ -95,6 +97,11 @@ local walletFxRemote = createRemote("WalletFx") -- servidor -> jugador: ganancia
 local rankUpRemote = createRemote("RankUp") -- jugador -> servidor: pedir subir de rango
 local exchangeRemote = createRemote("ExchangeCurrency") -- jugador -> servidor: cambio oro/gemas
 local waveFxRemote = createRemote("WaveFx") -- servidor -> jugador: avisos de la modalidad de oleadas
+local usePotionRemote = createRemote("UsePotion") -- jugador -> servidor: usar una poción de la mochila
+local buyPotionRemote = createRemote("BuyPotion") -- jugador -> servidor: comprar una poción con gemas
+local backpackRemote = Instance.new("RemoteFunction") -- jugador -> servidor: contenido de la mochila
+backpackRemote.Name = "BackpackList"
+backpackRemote.Parent = remotes
 
 -- Lista de jefes con requisito para la ventana de modalidades. El cliente la pide al abrirla.
 -- El manejador se asigna más abajo, cuando existen perfiles y el servicio de jefes.
@@ -162,14 +169,19 @@ local progression = ProgressionService.new({
 	end,
 })
 
--- Cada jugador que contribuyó a la baja recibe el XP del mob.
+-- Multiplicador de XP por pociones. Se asigna más abajo, cuando existe PotionService.
+local potionMultiplier: (number) -> number = function(_userId: number): number
+	return 1
+end
+
+-- Cada jugador que contribuyó a la baja recibe el XP del mob (x pociones).
 events.mobKilled.connect(function(event)
 	local mobDef = MobDefs[event.mobDefId]
 	if mobDef == nil then
 		return
 	end
 	for _, userId in event.contributorUserIds do
-		local granted = progression.grant(userId, mobDef.xp)
+		local granted = progression.grant(userId, math.floor(mobDef.xp * potionMultiplier(userId)))
 		if not granted.ok then
 			warn(`[XP] no se pudo dar XP a {userId}: {granted.error}`)
 		end
@@ -202,6 +214,82 @@ local wallet = WalletService.new({
 		end
 	end,
 })
+
+-- Pociones: el servidor publica el multiplicador y su fin como atributos para el HUD.
+local potions: PotionService.PotionService
+potions = PotionService.new({
+	items = Items,
+	inventory = inventory,
+	wallet = wallet,
+	now = serverNow,
+	onChanged = function(userId: number)
+		local player = Players:GetPlayerByUserId(userId)
+		if player ~= nil then
+			player:SetAttribute("XpBoostMult", potions.multiplierFor(userId))
+			player:SetAttribute("XpBoostEnd", potions.endsAtFor(userId) or 0)
+		end
+	end,
+})
+potionMultiplier = potions.multiplierFor
+
+local potionLimiter = RateLimiter.new(4, 1, serverNow)
+usePotionRemote.OnServerEvent:Connect(function(player: Player, payload: any)
+	if not potionLimiter.allow(player.UserId) then
+		walletFxRemote:FireClient(player, { kind = "potion", ok = false, error = "demasiadas_peticiones" })
+		return
+	end
+	if typeof(payload) ~= "table" or typeof(payload.itemId) ~= "string" then
+		walletFxRemote:FireClient(player, { kind = "potion", ok = false, error = "payload_invalido" })
+		return
+	end
+	local result = potions.use(player.UserId, payload.itemId)
+	if result.ok then
+		walletFxRemote:FireClient(player, { kind = "potion", ok = true, endsAt = result.value })
+	else
+		walletFxRemote:FireClient(player, { kind = "potion", ok = false, error = result.error })
+	end
+end)
+
+buyPotionRemote.OnServerEvent:Connect(function(player: Player, payload: any)
+	if not potionLimiter.allow(player.UserId) then
+		walletFxRemote:FireClient(player, { kind = "potion_buy", ok = false, error = "demasiadas_peticiones" })
+		return
+	end
+	if typeof(payload) ~= "table" or typeof(payload.itemId) ~= "string" then
+		walletFxRemote:FireClient(player, { kind = "potion_buy", ok = false, error = "payload_invalido" })
+		return
+	end
+	local result = potions.buy(player.UserId, payload.itemId)
+	if result.ok then
+		walletFxRemote:FireClient(player, { kind = "potion_buy", ok = true, itemId = payload.itemId })
+	else
+		walletFxRemote:FireClient(player, { kind = "potion_buy", ok = false, error = result.error })
+	end
+end)
+
+-- Mochila: lo que el jugador tiene, con su botón. Las pociones dicen USAR; el resto, INFO.
+backpackRemote.OnServerInvoke = function(player: Player)
+	local list = {}
+	for itemId, count in inventory.export(player.UserId) do
+		local def = Items[itemId]
+		if def ~= nil then
+			local potion = Potions[itemId]
+			table.insert(list, {
+				id = itemId,
+				name = def.displayName,
+				rarity = def.rarity,
+				count = count,
+				desc = if potion then `XP x{potion.multiplier} durante {math.floor(potion.durationSeconds / 60)} min` else "Objeto de la partida",
+				use = if potion then "USAR" else "INFO",
+				stats = { { "CANTIDAD", tostring(count) } },
+			})
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.name < b.name
+	end)
+	return list
+end
 
 -- El oro del mob se tira una vez y se reparte según el daño. Las gemas se tiran por persona.
 events.mobKilled.connect(function(event)
@@ -489,6 +577,7 @@ PlayerLifecycle.connect({
 	quests = quests,
 	releaseCombat = function(userId: number)
 		abilities.releasePlayer(userId)
+		potions.releasePlayer(userId)
 		roulette.releasePlayer(userId)
 	end,
 	forgetRateLimits = function(userId: number)
