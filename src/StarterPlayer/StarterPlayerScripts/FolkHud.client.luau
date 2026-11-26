@@ -295,12 +295,12 @@ local function addSection(name: string, title: string, body: string?)
 	screens[name] = buildNotice(name, title, body or SOON)
 end
 screens.FolkTienda = shopGui
-addSection("FolkMejoras", "Mejoras")
-addSection("FolkIndice", "Índice")
-addSection("FolkFrutas", "Frutas y jutsus")
+addSection("FolkMejoras", "Mejoras", "Las mejoras de frutas y jutsus llegarán en una próxima parte.\nMientras tanto, sube de rango para desbloquear más ganancias.")
+addSection("FolkIndice", "Índice", "Tienda: cambia oro y gemas, y mira los pases.\nRango: sube de nivel para multiplicar tus ganancias.\nModos: oleadas en la arena.\nAjustes y frutas: pronto.")
+addSection("FolkFrutas", "Frutas y jutsus", "Por ahora combates con las habilidades 1 a 4, o con los botones de abajo.\nLas frutas se añadirán más adelante.")
 addSection("FolkModos", "Modalidades", "Oleadas: 20 oleadas y un jefe final. Entra por el portal de la arena.")
-addSection("FolkInicio", "Inicio")
-addSection("FolkAjustes", "Ajustes")
+addSection("FolkInicio", "Inicio", "Bienvenido. Mata zombis para ganar oro y gemas.\nEntra al portal de oleadas cuando quieras un reto.\nAbre la tienda para cambiar oro por gemas.")
+addSection("FolkAjustes", "Ajustes", "Los ajustes de sonido y gráficos llegarán en una próxima parte.")
 
 local left = M.hud(pg, {
 	name = "FolkHudLeft",
