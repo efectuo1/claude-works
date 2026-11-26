@@ -340,28 +340,32 @@ function WaveService.new(deps: Dependencies)
 
 	service.leave = leave
 
-	-- Portal en la arena: un ProximityPrompt del servidor, sin remotos ni interfaz extra.
-	local portal = Instance.new("Part")
-	portal.Name = "PortalOleadas"
-	portal.Anchored = true
-	portal.CanCollide = false
-	portal.Transparency = 1
-	portal.Size = Vector3.new(2, 2, 2)
-	portal.Position = arenaCenter() - Vector3.new(0, 2, 0) -- a la altura de los pies, para que el prompt alcance
-	portal.Parent = workspace
+	-- Un portal por dificultad, en fila delante de la arena. Cada uno es un ProximityPrompt del servidor.
+	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
+	local ORDER = { "normal", "dificil", "pesadilla" }
+	for index, key in ORDER do
+		local portal = Instance.new("Part")
+		portal.Name = "Portal_" .. key
+		portal.Anchored = true
+		portal.CanCollide = false
+		portal.Transparency = 1
+		portal.Size = Vector3.new(2, 2, 2)
+		portal.Position = arenaCenter() + Vector3.new(-8 + (index - 1) * 8, -2, 26) -- a la altura de los pies, para que el prompt alcance
+		portal.Parent = workspace
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Entrar a oleadas"
-	prompt.ObjectText = "Arena"
-	prompt.HoldDuration = 0.4
-	prompt.MaxActivationDistance = 14
-	prompt.Parent = portal
-	prompt.Triggered:Connect(function(player: Player)
-		local result = service.enter(player.UserId)
-		if not result.ok then
-			deps.notify(player.UserId, { kind = "wave_error", error = result.error })
-		end
-	end)
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Entrar: " .. LABELS[key]
+		prompt.ObjectText = "Oleadas"
+		prompt.HoldDuration = 0.4
+		prompt.MaxActivationDistance = 14
+		prompt.Parent = portal
+		prompt.Triggered:Connect(function(player: Player)
+			local result = service.enter(player.UserId, key)
+			if not result.ok then
+				deps.notify(player.UserId, { kind = "wave_error", error = result.error })
+			end
+		end)
+	end
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		leave(player.UserId)
