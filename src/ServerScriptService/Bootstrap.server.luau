@@ -44,6 +44,7 @@ local Shop = require(ReplicatedStorage.Shared.Definitions.Shop)
 local GamePassService = require(ServerScriptService.Monetization.GamePassService)
 local MarketplaceService = game:GetService("MarketplaceService")
 local WaveService = require(ServerScriptService.Modes.WaveService)
+local JefesService = require(ServerScriptService.Modes.JefesService)
 local RouletteService = require(ServerScriptService.Roulette.RouletteService)
 local Result = require(Shared.Util.Result)
 
@@ -300,6 +301,33 @@ if world ~= nil then
 			local granted = wallet.rewardBoss(userId)
 			if not granted.ok then
 				warn(`[Oleadas] recompensa de jefe no entregada a {userId}: {granted.error}`)
+			end
+		end,
+		notify = function(userId: number, payload: { [string]: any })
+			local player = Players:GetPlayerByUserId(userId)
+			if player ~= nil then
+				waveFxRemote:FireClient(player, payload)
+			end
+		end,
+	})
+
+	-- Modo jefes: la sala y sus portales están detrás de la arena (ver la posición en Studio).
+	JefesService.new({
+		router = instances,
+		events = events,
+		controller = world.controller,
+		templates = world.templates,
+		mobsFolder = world.mobsFolder,
+		bossPosition = Vector3.new(0, 6, 220),
+		portalPosition = Vector3.new(0, 6, 180),
+		getLevel = function(userId: number): number?
+			local data = profiles.get(userId)
+			return if data then data.level else nil
+		end,
+		grantBoss = function(userId: number)
+			local granted = wallet.rewardBoss(userId)
+			if not granted.ok then
+				warn(`[Jefes] recompensa no entregada a {userId}: {granted.error}`)
 			end
 		end,
 		notify = function(userId: number, payload: { [string]: any })

@@ -27,6 +27,7 @@ export type Dependencies = {
 	templates: Instance,
 	mobsFolder: Instance,
 	bossPosition: Vector3,
+	portalPosition: Vector3,
 	getLevel: (userId: number) -> number?,
 	grantBoss: (userId: number) -> (),
 	notify: (userId: number, payload: { [string]: any }) -> (),
@@ -241,6 +242,35 @@ function JefesService.new(deps: Dependencies)
 		deps.notify(userId, { kind = "end", result = "salida", boss = current.boss.id })
 		if countPlayers(current) == 0 then
 			finish(current, "derrota")
+		end
+	end
+
+	-- Un portal por jefe y dificultad, en filas delante de la sala de jefes.
+	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
+	local ORDER = { "normal", "dificil", "pesadilla" }
+	for row, boss in BOSSES do
+		for col, key in ORDER do
+			local portal = Instance.new("Part")
+			portal.Name = `PortalJefe_{boss.id}_{key}`
+			portal.Anchored = true
+			portal.CanCollide = false
+			portal.Transparency = 1
+			portal.Size = Vector3.new(2, 2, 2)
+			portal.Position = deps.portalPosition + Vector3.new((col - 1) * 8 - 8, -2, (row - 1) * 10)
+			portal.Parent = workspace
+
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.ActionText = `Retar: {boss.id} ({LABELS[key]})`
+			prompt.ObjectText = "Jefes"
+			prompt.HoldDuration = 0.4
+			prompt.MaxActivationDistance = 14
+			prompt.Parent = portal
+			prompt.Triggered:Connect(function(player: Player)
+				local result = service.enter(player.UserId, boss.id, key)
+				if not result.ok then
+					deps.notify(player.UserId, { kind = "wave_error", error = result.error })
+				end
+			end)
 		end
 	end
 
