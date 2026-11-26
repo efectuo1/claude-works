@@ -26,6 +26,7 @@ local DomainEvents = require(ServerScriptService.Events.DomainEvents)
 local InventoryService = require(ServerScriptService.Inventory.InventoryService)
 local MobRegistry = require(ServerScriptService.Mobs.MobRegistry)
 local InstanceRouter = require(ServerScriptService.Instances.InstanceRouter)
+local instances = InstanceRouter.new(MobRegistry.overworld)
 local WorldBootstrap = require(ServerScriptService.World.WorldBootstrap)
 local WorldBuilder = require(ServerScriptService.World.WorldBuilder)
 local QuestService = require(ServerScriptService.Quests.QuestService)
@@ -284,6 +285,7 @@ end
 local world = WorldBootstrap.start(events, serverNow)
 if world ~= nil then
 	WaveService.new({
+		router = instances,
 		events = events,
 		controller = world.controller,
 		templates = world.templates,
@@ -365,7 +367,6 @@ end
 
 -- Combate.
 local castLimiter = RateLimiter.new(10, 1, serverNow)
-local instances = InstanceRouter.new(MobRegistry.overworld)
 local abilities = AbilityService.new({
 	now = serverNow,
 	allowRequest = castLimiter.allow,

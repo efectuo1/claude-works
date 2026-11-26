@@ -21,6 +21,7 @@ local Mob = require(ServerScriptService.Mobs.Mob)
 local MobController = require(ServerScriptService.Mobs.MobController)
 local MobRegistry = require(ServerScriptService.Mobs.MobRegistry)
 local MapLayout = require(ServerScriptService.World.MapLayout)
+local InstanceRouter = require(ServerScriptService.Instances.InstanceRouter)
 
 export type Dependencies = {
 	events: DomainEvents.Events,
@@ -30,13 +31,17 @@ export type Dependencies = {
 	grantGems: (userId: number, gems: number) -> (),
 	grantBoss: (userId: number) -> (),
 	notify: (userId: number, payload: { [string]: any }) -> (),
+	router: InstanceRouter.InstanceRouter?,
 }
 
 type MobEntry = { model: Model, controller: MobController.Controller? }
 type Run = {
+	id: string,
 	session: WaveSession.Session,
 	players: { [number]: boolean },
 	mobs: { [string]: MobEntry },
+	registry: MobRegistry.Registry,
+	healthMult: number,
 }
 
 local MAX_PLAYERS = 4
@@ -44,6 +49,17 @@ local NEXT_WAVE_DELAY = 3 -- segundos entre oleadas
 local RING_RADIUS = 18 -- los mobs aparecen en un anillo dentro de la arena
 local SPAWN_LIFT = 3
 local HUB_POSITION = Vector3.new(0, 6, 0)
+
+-- Dificultad elegida al entrar. Provisional: se ajusta con las pruebas.
+local DIFFICULTY = { normal = 1, dificil = 1.5, pesadilla = 2 }
+-- Cada ronda tiene un poco más de vida que la anterior.
+local WAVE_STEP = 0.05
+
+local function healthMult(difficulty: number, wave: number): number
+	return difficulty * (1 + WAVE_STEP * (wave - 1))
+end
+
+local runCounter = 0
 
 local WaveService = {}
 
@@ -135,7 +151,7 @@ function WaveService.new(deps: Dependencies)
 	local function onMobKilled(current: Run, instanceId: string, event: DomainEvents.MobKilledEvent)
 		local entry = current.mobs[instanceId]
 		current.mobs[instanceId] = nil
-		MobRegistry.unregister(instanceId)
+		current.registry.unregister(instanceId)
 		if entry ~= nil then
 			if entry.controller ~= nil then
 				entry.controller.stop()
@@ -176,12 +192,14 @@ function WaveService.new(deps: Dependencies)
 		local mobIds = info.value.mobs
 		local center = arenaCenter()
 		for index, mobDefId in mobIds do
-			local definition = MobDefs[mobDefId]
-			local template = deps.templates:FindFirstChild(definition and (definition.templateId or mobDefId) or mobDefId) :: Model?
-			if definition == nil or template == nil then
+			local baseDefinition = MobDefs[mobDefId]
+			local template = deps.templates:FindFirstChild(baseDefinition and (baseDefinition.templateId or mobDefId) or mobDefId) :: Model?
+			if baseDefinition == nil or template == nil then
 				finish(current, "error")
 				return
 			end
+			local definition = table.clone(baseDefinition)
+			definition.maxHealth = math.floor(baseDefinition.maxHealth * healthMult(current.healthMult, wave))
 			local angle = (index - 1) / #mobIds * math.pi * 2
 			local x = center.X + math.cos(angle) * RING_RADIUS
 			local z = center.Z + math.sin(angle) * RING_RADIUS
@@ -220,7 +238,7 @@ function WaveService.new(deps: Dependencies)
 				return
 			end
 			entry.controller = started.value
-			MobRegistry.register(instanceId, mob)
+			current.registry.register(instanceId, mob)
 		end
 	end
 
@@ -230,13 +248,16 @@ function WaveService.new(deps: Dependencies)
 		end
 		run = nil
 		for instanceId, entry in current.mobs do
-			MobRegistry.unregister(instanceId)
+			current.registry.unregister(instanceId)
 			if entry.controller ~= nil then
 				entry.controller.stop()
 			end
 			entry.model:Destroy()
 		end
 		current.mobs = {}
+		if deps.router then
+			deps.router.destroy(current.id)
+		end
 		for userId in current.players do
 			if result == "victoria" then
 				deps.grantBoss(userId)
@@ -252,6 +273,9 @@ function WaveService.new(deps: Dependencies)
 			return
 		end
 		current.players[userId] = nil
+		if deps.router then
+			deps.router.leave(userId)
+		end
 		deps.notify(userId, { kind = "end", result = "salida", wave = current.session.wave })
 		teleport(userId, HUB_POSITION)
 		if countPlayers(current) == 0 then
@@ -262,7 +286,7 @@ function WaveService.new(deps: Dependencies)
 	local service = {}
 
 	-- Entra a la arena. La primera persona abre la partida; las siguientes se unen si hay sitio.
-	function service.enter(userId: number): Result.Result<boolean>
+	function service.enter(userId: number, difficulty: string?): Result.Result<boolean>
 		local current = run
 		if current ~= nil then
 			if current.players[userId] then
@@ -272,12 +296,19 @@ function WaveService.new(deps: Dependencies)
 				return Result.err("arena_llena")
 			end
 			current.players[userId] = true
+			if deps.router then
+				deps.router.enter(userId, current.id)
+			end
 			teleport(userId, arenaCenter())
 			watchDeath(userId)
 			deps.notify(userId, { kind = "wave", wave = current.session.wave, total = WaveRules.MAX_WAVES, boss = isBossWave(current.session.wave) })
 			return Result.ok(true)
 		end
 
+		local multiplier = DIFFICULTY[difficulty or "normal"]
+		if multiplier == nil then
+			return Result.err("dificultad_invalida")
+		end
 		if not canSpawnAll() then
 			return Result.err("faltan_plantillas")
 		end
@@ -285,8 +316,21 @@ function WaveService.new(deps: Dependencies)
 		if not session.ok then
 			return Result.err(session.error)
 		end
-		local opened: Run = { session = session.value, players = { [userId] = true }, mobs = {} }
+		runCounter += 1
+		local registry = MobRegistry.new()
+		local opened: Run = {
+			id = `partida_{runCounter}`,
+			session = session.value,
+			players = { [userId] = true },
+			mobs = {},
+			registry = registry,
+			healthMult = multiplier,
+		}
 		run = opened
+		if deps.router then
+			deps.router.create(opened.id, registry)
+			deps.router.enter(userId, opened.id)
+		end
 		teleport(userId, arenaCenter())
 		watchDeath(userId)
 		notifyAll(opened, { kind = "wave", wave = 1, total = WaveRules.MAX_WAVES, boss = isBossWave(1) })
