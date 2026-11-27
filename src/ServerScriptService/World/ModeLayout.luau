@@ -21,9 +21,9 @@ export type Box = { name: string, center: Vector2, size: Vector2 }
 
 local ModeLayout = {}
 
--- Las modalidades viven en islas aparte, fuera del mapa principal (-320..320).
-local WAVE_ISLAND = Vector2.new(2000, 0)
-local BOSS_ISLAND = Vector2.new(2000, 400)
+-- Las modalidades viven en islas aparte, muy lejos del mapa principal (-320..320) para que no se vean desde el hub.
+local WAVE_ISLAND = Vector2.new(8000, 0)
+local BOSS_ISLAND = Vector2.new(8000, 900)
 ModeLayout.ISLAND_RADIUS = 84 -- radio de la base de cada isla (la base cubre todo lo jugable)
 
 ModeLayout.DECK_LIFT = 3 -- altura de las plataformas sobre el suelo plano

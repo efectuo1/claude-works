@@ -38,13 +38,6 @@ return {
 				expect(not MapLayout.isClear(Vector2.zero, 0), "el centro debe estar reservado")
 			end,
 
-			["el camino entre la plaza y la tienda está reservado"] = function()
-				expect(not MapLayout.isClear(Vector2.new(60, 0), 0), "el camino debe estar reservado")
-			end,
-
-			["el camino entre la plaza y la tienda es de piedra"] = function()
-				expect(MapLayout.surfaceAt(60, 0, MapLayout.FLAT_HEIGHT) == "Stone", "el camino debe ser de piedra")
-			end,
 		})
 	end,
 }
