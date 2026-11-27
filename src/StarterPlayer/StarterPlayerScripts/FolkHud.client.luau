@@ -163,6 +163,18 @@ local function openRank()
 	M.show(rankGui, true)
 end
 
+-- El botón RANGO del menú abre la ventana directamente: hay que rellenarla también al abrirla.
+rankGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if rankGui.Enabled then
+		refreshRankWindow()
+	end
+end)
+player:GetAttributeChangedSignal("Level"):Connect(function()
+	if rankGui.Enabled then
+		refreshRankWindow()
+	end
+end)
+
 M.live(rankGui, {
 	rebirth = function()
 		if rankUpRemote ~= nil then
@@ -217,7 +229,7 @@ local function buildShopWindow(): ScreenGui
 
 	-- Pestañas de sección: TODO, CAMBIO, PASES, FRUTAS
 	local tabBtn: { [string]: any } = {}
-	local tabW, tabGap = 118, 8
+	local tabW, tabGap = 156, 8
 	for i, name in { "todo", "cambio", "pases", "frutas", "pociones" } do
 		local x = (W - (5 * tabW + 4 * tabGap)) / 2 + (i - 1) * (tabW + tabGap)
 		local b = H.button(stage, "Tab_" .. name, x, 130, tabW, 46, 12, M.COLOR.purple, 6, { action = "tab", offer = name, lip = 5 })
@@ -385,6 +397,7 @@ local function fetchBackpack(): { any }
 end
 
 local InventoryWindow = require(ReplicatedStorage.Ui.InventoryWindow)
+local Label = require(ReplicatedStorage.Ui.Label)
 local RewardsWindow = require(ReplicatedStorage.Ui.RewardsWindow)
 
 -- Inventario: todos los objetos de la mochila por categoría. Oro y gemas no están aquí.
@@ -779,7 +792,7 @@ local function buildModesWindow(): ScreenGui
 		H.grad(card, pal[1], pal[3])
 		H.ink(card, 4)
 		H.text(card, "Titulo", heading, cardW / 2, 46, 44, 5)
-		local text = H.text(card, "Body", body, cardW / 2, 230, 22, 5)
+		local text = Label.box(card, "Body", body, 20, 196, cardW - 40, 170, 24, 5)
 		local btn = H.button(card, "Ir", (cardW - 320) / 2, 390, 320, 60, 16, M.COLOR.lime, 5, { action = "go", offer = offer })
 		H.text(btn, "Label", "IR A LA ENTRADA", 160, 30, 30, btn.ZIndex + 1)
 		return text :: TextLabel

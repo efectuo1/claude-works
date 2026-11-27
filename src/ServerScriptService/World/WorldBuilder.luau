@@ -13,7 +13,6 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local Result = require(ReplicatedStorage.Shared.Util.Result)
 local HubBuilder = require(script.Parent.HubBuilder)
 local MapLayout = require(script.Parent.MapLayout)
-local LandmarksBuilder = require(script.Parent.LandmarksBuilder)
 local ModeArenaBuilder = require(script.Parent.ModeArenaBuilder)
 
 local WorldBuilder = {}
@@ -421,9 +420,6 @@ function WorldBuilder.build(mobDefs: { [string]: Types.MobDef }): Result.Result<
 	end) and allOk
 	allOk = step("modalidades", function()
 		ModeArenaBuilder.build()
-	end) and allOk
-	allOk = step("zonas de servicio", function()
-		LandmarksBuilder.build(height)
 	end) and allOk
 	allOk = step("plantillas de mobs", function()
 		buildTemplates(mobDefs)

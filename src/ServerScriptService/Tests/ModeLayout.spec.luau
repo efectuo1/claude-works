@@ -9,9 +9,9 @@ local function inDeck(point: Vector2, deck: { center: Vector2, radius: number },
 	return (point - deck.center).Magnitude <= deck.radius - margin
 end
 
-local function inRegion(point: Vector2, id: string): boolean
-	local region = MapLayout.region(id)
-	return region ~= nil and (point - region.center).Magnitude < region.radius
+-- Dentro de la isla de la modalidad (la base cubre ISLAND_RADIUS desde su origen).
+local function inIsland(point: Vector2, origin: Vector2): boolean
+	return (point - origin).Magnitude < ModeLayout.ISLAND_RADIUS
 end
 
 return {
@@ -19,7 +19,7 @@ return {
 		return TestHarness.run("ModeLayout", {
 			["la arena de oleadas cae dentro de su zona"] = function()
 				for _, deck in ModeLayout.waveDecks() do
-					expect(inRegion(deck.center, "modes"), `{deck.name} fuera de la zona de oleadas`)
+					expect(inIsland(deck.center, ModeLayout.waveOrigin()), `{deck.name} fuera de la isla de oleadas`)
 				end
 			end,
 
@@ -80,9 +80,9 @@ return {
 			["la sala de jefes tiene lobby, puente y arena dentro de su zona"] = function()
 				local lobby = ModeLayout.bossLobbyBox()
 				local arena = ModeLayout.bossArena()
-				expect(inRegion(lobby.center, "bosses"), "el lobby está fuera de la zona de jefes")
-				expect(inRegion(arena.center, "bosses"), "la arena está fuera de la zona de jefes")
-				expect(inRegion(ModeLayout.bossBridge().from, "bosses"), "el puente empieza fuera")
+				expect(inIsland(lobby.center, ModeLayout.bossOrigin()), "el lobby está fuera de la isla de jefes")
+				expect(inIsland(arena.center, ModeLayout.bossOrigin()), "la arena está fuera de la isla de jefes")
+				expect(inIsland(ModeLayout.bossBridge().from, ModeLayout.bossOrigin()), "el puente empieza fuera")
 			end,
 
 			["los pads de jefes están dentro del lobby"] = function()

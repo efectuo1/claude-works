@@ -12,6 +12,7 @@ local H = M.helpers
 local DailyReward = require(ReplicatedStorage.Shared.Util.DailyReward)
 local PlaytimeRewards = require(ReplicatedStorage.Shared.Util.PlaytimeRewards)
 local Items = require(ReplicatedStorage.Shared.Definitions.Items)
+local Label = require(ReplicatedStorage.Ui.Label)
 
 local RewardsWindow = {}
 
@@ -165,7 +166,7 @@ function RewardsWindow.build(pg: PlayerGui, options: Options): ScreenGui
 			-- Si el día trae un objeto, se nombra debajo (el oro y las gemas ya están arriba).
 			local itemDef = if reward.itemId ~= nil then Items[reward.itemId] else nil
 			local extra = if itemDef then `{itemDef.displayName} x{reward.quantity or 1}` else ""
-			H.text(tile, "Extra", extra, tileW / 2, 160, 14, 4)
+			Label.box(tile, "Extra", extra, 8, 146, tileW - 16, 34, 16, 4)
 			if isToday then
 				H.text(tile, "Hoy", if s.claimedToday then "LISTO" else "HOY", tileW / 2, 186, 20, 5, WHITE)
 			end
@@ -198,7 +199,7 @@ function RewardsWindow.build(pg: PlayerGui, options: Options): ScreenGui
 			local row = H.rect(timePane, `Hito_{index}`, 30, y, 940, 68, 16, 3, Color3.fromRGB(40, 20, 70))
 			H.ink(row, 3)
 			H.text(row, "Minutos", `{tier.minutes} MIN`, 20, 34, 30, 4, M.COLOR.amber[1], "left")
-			H.text(row, "Premio", describe(tier), 190, 34, 20, 4, WHITE, "left")
+			Label.box(row, "Premio", describe(tier), 190, 12, 350, 44, 22, 4, WHITE, Enum.TextXAlignment.Left)
 			local track = H.rect(row, "Barra", 560, 26, 220, 16, 8, 4, BLACK)
 			local fraction = math.clamp(elapsed / needed, 0, 1)
 			local fill = H.rect(track, "Relleno", 0, 0, math.floor(220 * fraction), 16, 8, 5, TIME_PAL[1])

@@ -4,11 +4,9 @@
 	y franjas libres de decoración. No toca Instances, así que se prueba sin Studio.
 
 	Disposición (XZ, centro = 0,0):
-	  Oeste  (-190, 0): arena de oleadas (plataformas y puentes sobre agua).
-	  Centro (0, 0):    plaza de inicio con fuente y las cuatro cabañas de modalidades al norte.
-	  Este   (190, 0):  tienda.
-	  Sur    (0, 190):  sala de jefes (lobby, puente y arena).
+	  Centro (0, 0):    plaza de inicio con fuente, casas de modalidad al oeste, tienda al este.
 	  Campos de mobs:   anillo entre el centro y el borde del mapa.
+	Las modalidades (oleadas y jefes) están en una isla aparte, fuera de este mapa (ver ModeLayout).
 ]]
 
 export type Kind = "hub" | "shop" | "modes" | "bosses"
@@ -23,23 +21,16 @@ MapLayout.FLAT_HEIGHT = 2
 MapLayout.BLEND = 30 -- studs de transición desde una zona plana hasta el relieve
 MapLayout.EDGE_WIDTH = 24 -- franja de roca en el borde del mapa
 
+-- Solo el hub ocupa el terreno principal. Las modalidades viven en su propia isla (ModeLayout),
+-- lejos del mapa, así que no necesitan zona aquí.
 local REGIONS: { Region } = {
 	{ id = "hub", kind = "hub", center = Vector2.new(0, 0), radius = 40 },
-	{ id = "shop", kind = "shop", center = Vector2.new(190, 0), radius = 30 },
-	-- La arena de oleadas ocupa 64 studs desde su centro (satélites incluidos): la zona plana la rodea con margen.
-	{ id = "modes", kind = "modes", center = Vector2.new(-190, 0), radius = 70 },
-	-- La sala de jefes cubre desde el lobby (norte) hasta el fondo de la arena (sur).
-	{ id = "bosses", kind = "bosses", center = Vector2.new(0, 190), radius = 62 },
 }
 
-local CORRIDORS: { Corridor } = {
-	{ from = Vector2.new(0, 0), to = Vector2.new(190, 0), halfWidth = 9 },
-	{ from = Vector2.new(0, 0), to = Vector2.new(-190, 0), halfWidth = 9 },
-	{ from = Vector2.new(0, 0), to = Vector2.new(0, 190), halfWidth = 9 },
-}
+local CORRIDORS: { Corridor } = {}
 
 -- Dónde aparecen los jugadores al empezar y al volver al hub: al lado de la fuente, por la derecha.
-MapLayout.HUB_SPAWN = Vector2.new(12, 0) -- al lado de la fuente, por la derecha
+MapLayout.HUB_SPAWN = Vector2.new(12, 0)
 
 -- Nombres = spawnPointName de Zones.luau. Todos quedan en los campos, fuera de zonas y caminos.
 local SPAWN_POINTS: { [string]: Vector2 } = {

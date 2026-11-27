@@ -10,6 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local M = require(ReplicatedStorage:WaitForChild("FolkStudUI"))
 local H = M.helpers
+local Label = require(ReplicatedStorage.Ui.Label)
 
 local InventoryWindow = {}
 
@@ -127,7 +128,7 @@ function InventoryWindow.build(pg: PlayerGui, options: Options): ScreenGui
 	H.ink(win, 4)
 	H.studs(win, Vector2.new(50, 46), 0.8, 12, 1)
 	H.text(stage, "Title", "INVENTARIO", W / 2, 44, 50, 8)
-	H.text(stage, "Sub", "Oro y gemas van aparte, arriba a la derecha", W / 2, 96, 22, 5)
+	Label.box(stage, "Sub", "Oro y gemas van aparte, arriba a la derecha", 200, 80, 600, 34, 24, 5)
 	local close = H.button(stage, "Close", W - 42, -26, 66, 70, 12, M.COLOR.red, 9, { plain = true, action = "close" })
 	H.text(close, "X", "X", 33, 32, 56, 10)
 
@@ -208,7 +209,7 @@ function InventoryWindow.build(pg: PlayerGui, options: Options): ScreenGui
 		H.grad(face, pal[1], pal[2])
 		H.ink(face, if isSelected then 6 else 3, if isSelected then WHITE else BLACK)
 		emblem(face, item.category, 80).Position = UDim2.fromOffset(30, 14)
-		H.text(face, "Nombre", item.name, 70, 110, 17, 7)
+		Label.box(face, "Nombre", item.name, 8, 96, 124, 32, 18, 7)
 		H.text(face, "Rareza", RARITY_NAME[item.rarity] or item.rarity, 70, 132, 15, 7, RARITY_COLOR[item.rarity] or WHITE)
 		local badge = H.rect(face, "Badge", 94, 6, 40, 24, 12, 8, BLACK)
 		H.text(badge, "Cantidad", `x{item.count}`, 20, 12, 16, 9)
@@ -232,7 +233,7 @@ function InventoryWindow.build(pg: PlayerGui, options: Options): ScreenGui
 			card(item, index)
 		end
 		if #list == 0 then
-			local empty = H.text(panel, "Vacio", "No tienes objetos de esta categoría todavía", 310, 220, 22, 6)
+			local empty = Label.box(panel, "Vacio", "No tienes objetos de esta categoría todavía", 60, 200, 500, 60, 28, 6)
 			empty.Name = "Vacio"
 		else
 			local old = panel:FindFirstChild("Vacio")
@@ -252,7 +253,7 @@ function InventoryWindow.build(pg: PlayerGui, options: Options): ScreenGui
 		local item = findItem(selectedId)
 		local pal = PAL_OF[selectedCategory] or M.COLOR.blue
 		if item == nil then
-			H.text(detail, "Ayuda", "Elige un objeto para verlo aquí", 150, 210, 22, 6)
+			Label.box(detail, "Ayuda", "Elige un objeto para verlo aquí", 20, 200, 260, 60, 24, 6)
 			return
 		end
 		emblem(detail, item.category, 130).Position = UDim2.fromOffset(85, 30)

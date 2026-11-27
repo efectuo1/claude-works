@@ -58,9 +58,15 @@ local function bridge(parent: Instance, from: Vector2, to: Vector2, width: numbe
 	end
 end
 
+local BASE_SAND = Color3.fromRGB(230, 205, 150)
+local BASE_STONE = Color3.fromRGB(150, 150, 165)
+
 local function buildWave(parent: Instance)
 	local y = ModeLayout.deckY()
 	local origin = ModeLayout.waveOrigin()
+
+	-- Isla: base de arena (la isla no tiene terreno, así que la pone esta función).
+	disc(parent, "IslaBase", origin, ModeLayout.ISLAND_RADIUS, MapLayout.FLAT_HEIGHT - 0.3, BASE_SAND, Enum.Material.Sand)
 
 	-- Lago: un disco de agua justo sobre el suelo plano, bajo las plataformas.
 	local water = disc(parent, "Agua", origin, ModeLayout.WATER_RADIUS, MapLayout.FLAT_HEIGHT + 0.3, WATER, Enum.Material.Glass)
@@ -79,6 +85,8 @@ local function buildBoss(parent: Instance)
 	local y = ModeLayout.deckY()
 	local lobby = ModeLayout.bossLobbyBox()
 	local arena = ModeLayout.bossArena()
+	-- Isla de la sala: base de piedra que cubre lobby, puente y arena.
+	disc(parent, "IslaBase", ModeLayout.bossOrigin(), ModeLayout.ISLAND_RADIUS, MapLayout.FLAT_HEIGHT - 0.3, BASE_STONE, Enum.Material.Slate)
 
 	part(parent, "SalaJefes_Lobby", Vector3.new(lobby.size.X, 0.6, lobby.size.Y), CFrame.new(lobby.center.X, y, lobby.center.Y), STONE, Enum.Material.Slate)
 	disc(parent, "SalaJefes_Arena", arena.center, arena.radius, y, MARBLE, Enum.Material.Marble)

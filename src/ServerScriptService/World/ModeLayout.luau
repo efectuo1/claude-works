@@ -21,8 +21,10 @@ export type Box = { name: string, center: Vector2, size: Vector2 }
 
 local ModeLayout = {}
 
-local WAVE_FALLBACK = Vector2.new(-190, 0)
-local BOSS_FALLBACK = Vector2.new(0, 190)
+-- Las modalidades viven en islas aparte, fuera del mapa principal (-320..320).
+local WAVE_ISLAND = Vector2.new(2000, 0)
+local BOSS_ISLAND = Vector2.new(2000, 400)
+ModeLayout.ISLAND_RADIUS = 84 -- radio de la base de cada isla (la base cubre todo lo jugable)
 
 ModeLayout.DECK_LIFT = 3 -- altura de las plataformas sobre el suelo plano
 ModeLayout.WATER_RADIUS = 66
@@ -30,19 +32,14 @@ ModeLayout.FALL_DEPTH = 10 -- por debajo de este desnivel, el jugador vuelve a l
 ModeLayout.BRIDGE_WIDTH = 8
 ModeLayout.PAD_SPACING = 6
 
-local function regionCenter(id: string, fallback: Vector2): Vector2
-	local region = MapLayout.region(id)
-	return if region then region.center else fallback
-end
-
--- Origen de la arena de oleadas (centro de la zona "modes").
+-- Origen de la arena de oleadas (centro de su isla).
 function ModeLayout.waveOrigin(): Vector2
-	return regionCenter("modes", WAVE_FALLBACK)
+	return WAVE_ISLAND
 end
 
--- Origen de la sala de jefes (centro de la zona "bosses").
+-- Origen de la sala de jefes (centro de su isla).
 function ModeLayout.bossOrigin(): Vector2
-	return regionCenter("bosses", BOSS_FALLBACK)
+	return BOSS_ISLAND
 end
 
 -- Altura de las plataformas: el suelo plano más la elevación.
