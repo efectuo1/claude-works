@@ -425,6 +425,17 @@ local function refreshBackpack()
 end
 screens.FolkMochila = buildBackpack()
 
+-- El servidor pide abrir una ventana (por ejemplo, la tienda desde su cartel en el hub).
+local openWindowRemote = if remotes then remotes:FindFirstChild("OpenWindow") :: RemoteEvent? else nil
+if openWindowRemote ~= nil then
+	openWindowRemote.OnClientEvent:Connect(function(screenName: any)
+		local target = screens[tostring(screenName)]
+		if target ~= nil then
+			M.show(target, true)
+		end
+	end)
+end
+
 -- Premios: regalo diario (racha de 7 días) y premios por tiempo seguido.
 if remotes ~= nil then
 	screens.FolkPremios = RewardsWindow.build(pg, { remotes = remotes :: Folder, notice = showNotice })

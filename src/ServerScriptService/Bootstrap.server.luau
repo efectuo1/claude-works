@@ -94,6 +94,7 @@ local startQuestRemote = createRemote("StartQuest")
 local castResultRemote = createRemote("CastResult") -- servidor -> quien lanzó: éxito o motivo del rechazo
 local abilityFxRemote = createRemote("AbilityFx") -- servidor -> todos: efecto visual en el objetivo
 local rouletteResultRemote = createRemote("RouletteResult") -- servidor -> quien giró: premio o motivo
+local openWindowRemote = createRemote("OpenWindow") -- servidor -> cliente: abrir una ventana (por nombre de pantalla)
 local walletFxRemote = createRemote("WalletFx") -- servidor -> jugador: ganancias y resultado de rango
 local rankUpRemote = createRemote("RankUp") -- jugador -> servidor: pedir subir de rango
 local exchangeRemote = createRemote("ExchangeCurrency") -- jugador -> servidor: cambio oro/gemas
@@ -544,6 +545,13 @@ local roulette = RouletteService.new({
 })
 
 local hubFolder = workspace:FindFirstChild("Hub")
+-- Prompt de la tienda del hub: abre la ventana de tienda en el cliente de quien lo pulsa.
+local shopPrompt = if hubFolder then hubFolder:FindFirstChild("PromptTienda", true) else nil
+if shopPrompt ~= nil and shopPrompt:IsA("ProximityPrompt") then
+	shopPrompt.Triggered:Connect(function(player: Player)
+		openWindowRemote:FireClient(player, "FolkTienda")
+	end)
+end
 local wheel = if hubFolder then hubFolder:FindFirstChild("Ruleta") else nil
 if wheel ~= nil and wheel:IsA("BasePart") then
 	local prompt = Instance.new("ProximityPrompt")

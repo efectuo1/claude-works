@@ -42,7 +42,7 @@ function DailyReward.status(state: State, today: number): Status
 	local claimedToday = state.lastDay == today
 	local continuing = state.lastDay == today - 1
 	-- Si hoy no está reclamado, la racha que se obtendría al reclamar.
-	local nextStreak = if claimedToday then state.streak elif continuing then state.streak + 1 else 1
+	local nextStreak = if claimedToday then state.streak elseif continuing then state.streak + 1 else 1
 	local cycleDay = ((nextStreak - 1) % DailyReward.CYCLE) + 1
 	return {
 		claimedToday = claimedToday,

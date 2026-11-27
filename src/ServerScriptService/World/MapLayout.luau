@@ -38,8 +38,8 @@ local CORRIDORS: { Corridor } = {
 	{ from = Vector2.new(0, 0), to = Vector2.new(0, 190), halfWidth = 9 },
 }
 
--- Dónde aparecen los jugadores al empezar y al volver al hub: al sur de la fuente, mirando a las cabañas.
-MapLayout.HUB_SPAWN = Vector2.new(0, 18)
+-- Dónde aparecen los jugadores al empezar y al volver al hub: al lado de la fuente, por la derecha.
+MapLayout.HUB_SPAWN = Vector2.new(12, 0) -- al lado de la fuente, por la derecha
 
 -- Nombres = spawnPointName de Zones.luau. Todos quedan en los campos, fuera de zonas y caminos.
 local SPAWN_POINTS: { [string]: Vector2 } = {
