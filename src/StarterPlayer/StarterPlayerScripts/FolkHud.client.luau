@@ -645,8 +645,19 @@ local function floatText(x: number, y: number, value: string, color: Color3)
 			TextTransparency = 1,
 			TextStrokeTransparency = 1,
 		}):Play()
+		-- El texto grande trae una sombra hermana ("<nombre>Drop") que también hay que quitar; si no, queda pegada.
+		local drop = design:FindFirstChild(name .. "Drop")
+		if drop ~= nil and drop:IsA("TextLabel") then
+			TweenService:Create(drop, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.fromOffset(x, y - 56),
+				TextTransparency = 1,
+			}):Play()
+		end
 		task.delay(1.3, function()
 			l:Destroy()
+			if drop ~= nil then
+				drop:Destroy()
+			end
 		end)
 	end
 end

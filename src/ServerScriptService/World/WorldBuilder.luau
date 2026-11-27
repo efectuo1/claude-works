@@ -170,25 +170,36 @@ local function buildDecor()
 		end
 	end
 
-	for i = 1, 120 do
-		local p = randomPoint(4)
+	-- Árboles de copa redonda: tronco marrón y tres bolas de verde que no bloquean a los mobs.
+	local CANOPY = { Color3.fromRGB(70, 160, 80), Color3.fromRGB(45, 135, 75), Color3.fromRGB(115, 195, 95) }
+	for i = 1, 90 do
+		local p = randomPoint(6)
 		local base = height(p.X, p.Y)
+		local trunkHeight = rng:NextNumber(5, 7)
 		local trunk = Instance.new("Part")
 		trunk.Name = `Arbol_{i}`
 		trunk.Anchored = true
 		trunk.Material = Enum.Material.Wood
-		trunk.Color = Color3.fromRGB(150, 70, 40)
-		trunk.Size = Vector3.new(1, 9, 1)
-		trunk.CFrame = CFrame.new(p.X, base + 4.5, p.Y)
+		trunk.Color = Color3.fromRGB(120, 80, 50)
+		trunk.Size = Vector3.new(1.2, trunkHeight, 1.2)
+		trunk.CFrame = CFrame.new(p.X, base + trunkHeight / 2, p.Y)
 		trunk.Parent = decor
-		local branch = Instance.new("Part")
-		branch.Name = "Rama"
-		branch.Anchored = true
-		branch.Material = Enum.Material.Wood
-		branch.Color = Color3.fromRGB(150, 70, 40)
-		branch.Size = Vector3.new(4, 0.6, 0.6)
-		branch.CFrame = CFrame.new(p.X + 1.5, base + 7, p.Y) * CFrame.Angles(0, 0, math.rad(25))
-		branch.Parent = decor
+		local crown = rng:NextNumber(4.5, 6)
+		for k = 1, 3 do
+			local ball = Instance.new("Part")
+			ball.Name = "Copa"
+			ball.Shape = Enum.PartType.Ball
+			ball.Anchored = true
+			ball.CanCollide = false
+			ball.Material = Enum.Material.SmoothPlastic
+			ball.Color = CANOPY[(i + k) % #CANOPY + 1]
+			local size = crown * rng:NextNumber(0.7, 1)
+			ball.Size = Vector3.new(size, size, size)
+			local dx = rng:NextNumber(-1.6, 1.6)
+			local dz = rng:NextNumber(-1.6, 1.6)
+			ball.CFrame = CFrame.new(p.X + dx, base + trunkHeight + rng:NextNumber(0, 1.5), p.Y + dz)
+			ball.Parent = decor
+		end
 	end
 
 	for i = 1, 16 do
