@@ -236,8 +236,13 @@ function HubBuilder.build(heightAt: HeightAt)
 	local center = Vector3.new(0, groundY, 0)
 
 	-- Plaza empedrada: anillo de adoquín y círculo de mármol en el centro, con farolas y macizos de flores alrededor.
-	flatDisc(hub, "Plaza", 26, 0.4, center + Vector3.new(0, 0.2, 0), Color3.fromRGB(196, 186, 170), Enum.Material.Cobblestone)
-	flatDisc(hub, "PlazaCentro", 18, 0.25, center + Vector3.new(0, 0.45, 0), Color3.fromRGB(236, 230, 220), Enum.Material.Marble)
+	-- Como la referencia: suelo de arena, círculo de piedra bajo la fuente y piedras grises en anillo.
+	flatDisc(hub, "Plaza", 30, 0.4, center + Vector3.new(0, 0.2, 0), SAND, Enum.Material.Sand)
+	flatDisc(hub, "PlazaCentro", 17, 0.25, center + Vector3.new(0, 0.45, 0), Color3.fromRGB(190, 200, 215), Enum.Material.Cobblestone)
+	for index = 0, 13 do
+		local angle = math.rad(index * 360 / 14 + 8)
+		flatDisc(hub, "PiedraAnillo", 1.8, 0.3, center + Vector3.new(math.cos(angle) * 26, 0.5, math.sin(angle) * 26), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
+	end
 	for index = 0, 11 do
 		local angle = math.rad(index * 30 + 15)
 		lamp(hub, center + Vector3.new(math.cos(angle) * 22, 0.5, math.sin(angle) * 22))

@@ -18,9 +18,9 @@ local ModeArenaBuilder = require(script.Parent.ModeArenaBuilder)
 local WorldBuilder = {}
 
 local MAP_HALF = MapLayout.HALF_SIZE
-local VOXEL = 8 -- resolución del terreno en studs (mapa grande: 8 para no pasar de millones de voxels)
-local MIN_Y = -24
-local MAX_Y = 48
+local VOXEL = 4 -- Roblox exige resolución 4 para WriteVoxels
+local MIN_Y = -12 -- por debajo del fondo del mar (-10)
+local MAX_Y = 24 -- por encima de la tierra más alta (~15)
 local SPAWN_XZ = MapLayout.spawnPoints()
 local height = MapLayout.height
 
