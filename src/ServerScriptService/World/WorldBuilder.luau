@@ -127,9 +127,9 @@ end
 
 -- Colores del terreno: se fijan por material antes de escribir voxels.
 local function paintTerrain(terrain: Terrain)
-	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(110, 220, 90))
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(104, 190, 88))
 	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(250, 220, 150))
-	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(150, 150, 170))
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(150, 140, 178))
 	terrain:SetMaterialColor(Enum.Material.Cobblestone, Color3.fromRGB(175, 165, 150))
 end
 
@@ -175,16 +175,16 @@ local function buildDecor()
 	for i = 1, 90 do
 		local p = randomPoint(6)
 		local base = height(p.X, p.Y)
-		local trunkHeight = rng:NextNumber(5, 7)
+		local trunkHeight = rng:NextNumber(8, 11)
 		local trunk = Instance.new("Part")
 		trunk.Name = `Arbol_{i}`
 		trunk.Anchored = true
 		trunk.Material = Enum.Material.Wood
 		trunk.Color = Color3.fromRGB(120, 80, 50)
-		trunk.Size = Vector3.new(1.2, trunkHeight, 1.2)
+		trunk.Size = Vector3.new(1.8, trunkHeight, 1.8)
 		trunk.CFrame = CFrame.new(p.X, base + trunkHeight / 2, p.Y)
 		trunk.Parent = decor
-		local crown = rng:NextNumber(4.5, 6)
+		local crown = rng:NextNumber(8, 11)
 		for k = 1, 3 do
 			local ball = Instance.new("Part")
 			ball.Name = "Copa"
