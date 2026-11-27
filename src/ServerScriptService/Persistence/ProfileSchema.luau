@@ -9,6 +9,7 @@
 	- v2: progreso de misiones (misión activa y completadas).
 	- v3: experiencia (xp). Los perfiles antiguos reciben el XP mínimo de su nivel.
 	- v4: oro, gemas y rango. Los perfiles antiguos empiezan con 0 y rango novato.
+	- v5: pociones activas y en cola (segundos restantes). Los perfiles antiguos empiezan sin pociones.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,6 +23,9 @@ export type ProfileQuests = {
 	completed: { [string]: boolean },
 }
 
+-- Poción guardada: tipo, multiplicador y segundos (restantes si es la activa, duración si está en cola).
+export type SavedPotion = { kind: string, multiplier: number, seconds: number }
+
 export type ProfileData = {
 	schemaVersion: number,
 	contentVersion: number,
@@ -32,9 +36,10 @@ export type ProfileData = {
 	gold: number,
 	gems: number,
 	rank: string,
+	potions: { SavedPotion },
 }
 
-local CURRENT_VERSION = 4
+local CURRENT_VERSION = 5
 local CONTENT_VERSION = 1
 
 -- MIGRATIONS[v] convierte datos de la versión v a v + 1. Nunca se editan migraciones ya publicadas.
@@ -70,6 +75,15 @@ local MIGRATIONS: { [number]: (raw: { [string]: unknown }) -> { [string]: unknow
 		out.rank = "novato"
 		return out
 	end,
+	[4] = function(raw)
+		local out: { [string]: unknown } = {}
+		for key, value in raw do
+			out[key] = value
+		end
+		out.schemaVersion = 5
+		out.potions = {}
+		return out
+	end,
 }
 
 local ProfileSchema = {}
@@ -88,6 +102,7 @@ function ProfileSchema.defaults(): ProfileData
 		gold = 0,
 		gems = 0,
 		rank = "novato",
+		potions = {},
 	}
 end
 
@@ -179,6 +194,29 @@ function ProfileSchema.validate(raw: unknown): Result.Result<ProfileData>
 		active = { questId = questId, count = count }
 	end
 
+	local rawPotions = data.potions
+	if type(rawPotions) ~= "table" then
+		return Result.err("profile_corrupt")
+	end
+	local potions: { SavedPotion } = {}
+	for _, entry in (rawPotions :: { [unknown]: unknown }) do
+		if type(entry) ~= "table" then
+			return Result.err("profile_corrupt")
+		end
+		local potion = entry :: { [string]: unknown }
+		local kind, multiplier, seconds = potion.kind, potion.multiplier, potion.seconds
+		if type(kind) ~= "string" or #kind == 0 then
+			return Result.err("profile_corrupt")
+		end
+		if type(multiplier) ~= "number" or multiplier <= 0 then
+			return Result.err("profile_corrupt")
+		end
+		if type(seconds) ~= "number" or seconds % 1 ~= 0 or seconds < 0 then
+			return Result.err("profile_corrupt")
+		end
+		table.insert(potions, { kind = kind, multiplier = multiplier, seconds = seconds })
+	end
+
 	return Result.ok({
 		schemaVersion = CURRENT_VERSION,
 		contentVersion = contentVersion,
@@ -189,6 +227,7 @@ function ProfileSchema.validate(raw: unknown): Result.Result<ProfileData>
 		gold = gold,
 		gems = gems,
 		rank = rank,
+		potions = potions,
 	})
 end
 

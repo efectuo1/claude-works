@@ -33,6 +33,8 @@ export type PotionService = {
 	endsAtFor: (userId: number) -> number?,
 	queuedFor: (userId: number) -> number,
 	releasePlayer: (userId: number) -> (),
+	snapshot: (userId: number) -> { PotionTimer.Saved },
+	restore: (userId: number, saved: { PotionTimer.Saved }) -> (),
 }
 
 local PotionService = {}
@@ -117,6 +119,25 @@ function PotionService.new(deps: Dependencies): PotionService
 		end
 		PotionTimer.advance(state, deps.now())
 		return PotionTimer.queued(state)
+	end
+
+	-- Estado para guardar en el perfil (segundos restantes, no momentos absolutos).
+	function service.snapshot(userId: number): { PotionTimer.Saved }
+		local state = states[userId]
+		if state == nil then
+			return {}
+		end
+		return PotionTimer.snapshot(state, deps.now())
+	end
+
+	-- Restaura al entrar, con los datos guardados en el perfil.
+	function service.restore(userId: number, saved: { PotionTimer.Saved })
+		if #saved == 0 then
+			states[userId] = nil
+			return
+		end
+		local state = stateFor(userId)
+		PotionTimer.restore(state, deps.now(), saved)
 	end
 
 	function service.releasePlayer(userId: number)

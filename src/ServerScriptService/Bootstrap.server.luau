@@ -568,6 +568,7 @@ local function snapshotFor(userId: number): ProfileSchema.ProfileData?
 		rank = current.rank,
 		inventory = inventory.export(userId),
 		quests = quests.export(userId),
+		potions = potions.snapshot(userId),
 	}
 end
 
@@ -646,6 +647,9 @@ PlayerLifecycle.connect({
 		player:SetAttribute("Xp", if data then data.xp else 0)
 		if data then
 			setWalletAttributes(player.UserId, data)
+			-- Las pociones que quedaban al salir siguen con el tiempo que les quedaba.
+			potions.restore(player.UserId, data.potions)
+			publishPotion(player.UserId)
 		end
 	end,
 })

@@ -8,6 +8,7 @@ local expect = TestHarness.expect
 
 local XP_10 = { kind = "xp", multiplier = 2, durationSeconds = 600 }
 local XP_15 = { kind = "xp", multiplier = 2, durationSeconds = 900 }
+local OTHER_KIND = { kind = "fruta", multiplier = 3, durationSeconds = 300 }
 local LUCK = { kind = "luck", multiplier = 1.5, durationSeconds = 300 }
 
 return {
@@ -61,6 +62,29 @@ return {
 				expect(PotionTimer.multiplier(state, 1000) == 2, "a los 1000 s sigue activa la XP sumada")
 				expect(PotionTimer.multiplier(state, 1600) == 1.5, "a los 1600 s debe estar activa la de suerte")
 				expect(PotionTimer.multiplier(state, 1801) == 1, "todo debe haber terminado a los 1800 s")
+			end,
+
+			["guardar y restaurar conserva lo que queda y la cola"] = function()
+				local state = PotionTimer.new()
+				PotionTimer.use(state, 0, XP_10)
+				PotionTimer.use(state, 0, OTHER_KIND)
+				local saved = PotionTimer.snapshot(state, 100)
+				expect(#saved == 2, "debe guardar la activa y la cola")
+				expect(saved[1].seconds == 500, `la activa debe quedar con 500 s y quedan {saved[1].seconds}`)
+				expect(saved[2].seconds == 300, "la de la cola debe conservar su duración")
+
+				local restored = PotionTimer.new()
+				PotionTimer.restore(restored, 5000, saved)
+				expect(PotionTimer.multiplier(restored, 5000) == 2, "la poción restaurada debe estar activa")
+				expect(PotionTimer.endsAt(restored, 5000) == 5500, "debe terminar 500 s después de restaurar")
+				expect(PotionTimer.queued(restored) == 1, "la otra poción debe quedar en cola")
+			end,
+
+			["restaurar una lista vacía deja el estado limpio"] = function()
+				local state = PotionTimer.new()
+				PotionTimer.use(state, 0, XP_10)
+				PotionTimer.restore(state, 0, {})
+				expect(PotionTimer.multiplier(state, 0) == 1, "sin datos no debe haber poción activa")
 			end,
 
 			["advance no cambia nada antes de tiempo"] = function()

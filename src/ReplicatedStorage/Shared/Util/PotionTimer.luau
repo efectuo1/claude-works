@@ -67,4 +67,34 @@ function PotionTimer.queued(state: State): number
 	return #state.queue
 end
 
+-- Forma guardable: lo que queda de la activa (primera) y la duración de cada una en cola.
+-- Se guardan segundos y no momentos absolutos: cada servidor tiene su propio reloj.
+export type Saved = { kind: string, multiplier: number, seconds: number }
+
+function PotionTimer.snapshot(state: State, now: number): { Saved }
+	PotionTimer.advance(state, now)
+	local list: { Saved } = {}
+	if state.active ~= nil then
+		local remaining = math.max(0, math.ceil(state.active.endsAt - now))
+		table.insert(list, { kind = state.active.kind, multiplier = state.active.multiplier, seconds = remaining })
+	end
+	for _, potion in state.queue do
+		table.insert(list, { kind = potion.kind, multiplier = potion.multiplier, seconds = potion.durationSeconds })
+	end
+	return list
+end
+
+-- Restaura desde una lista guardada: la primera es la activa (empieza ahora), el resto espera en cola.
+function PotionTimer.restore(state: State, now: number, list: { Saved })
+	state.active = nil
+	state.queue = {}
+	for index, entry in list do
+		if index == 1 then
+			state.active = { kind = entry.kind, multiplier = entry.multiplier, endsAt = now + entry.seconds }
+		else
+			table.insert(state.queue, { kind = entry.kind, multiplier = entry.multiplier, durationSeconds = entry.seconds })
+		end
+	end
+end
+
 return table.freeze(PotionTimer)

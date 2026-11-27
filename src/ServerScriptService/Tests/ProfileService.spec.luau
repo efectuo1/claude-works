@@ -96,6 +96,7 @@ local function snapshot(level: number, inventory: { [string]: number }): Profile
 		rank = "novato",
 		inventory = inventory,
 		quests = { active = nil, completed = {} },
+		potions = {},
 	}
 end
 
