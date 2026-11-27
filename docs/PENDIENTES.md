@@ -59,3 +59,8 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - [ ] Tests para JefesService. Necesitan mocks de Mob/MobController; por ahora no hay suite.
 - [ ] Los tipos MobRegistry.Registry e InstanceRouter.InstanceRouter se importan desde otros módulos: si Studio marca error, revisar primero aquí.
 - [ ] Ambas modalidades comparten el canal WaveFx. El cliente distingue jefe de oleadas por el campo "boss" del mensaje "end".
+
+## Modalidades y UI (sin probar en Studio todavía)
+- Ventana de modalidades (FolkModos): tarjetas de oleadas y jefes, botón "IR A LA ENTRADA" (remoto GoToMode, servidor teletransporta; no deja cambiar de modalidad dentro de una partida).
+- Marcador de oleadas: "Oleada N / 20 · Quedan X" (aviso "alive" del servidor tras cada muerte y cada oleada).
+- Pendiente: arte de la mochila (iconos reales), pulido general del kit en el resto de ventanas, pass/dificultad sin multiplicadores de XP, pociones sin persistencia, pathfinding de mobs (ahora se usan puentes con barandilla).
