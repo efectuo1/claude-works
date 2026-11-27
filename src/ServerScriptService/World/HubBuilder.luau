@@ -151,7 +151,38 @@ local function bush(parent: Instance, position: Vector3, rng: Random)
 end
 
 -- Fuente central grande: escalones de piedra, cuenco con agua y chorro con chispas.
-local ROAD = Color3.fromRGB(176, 140, 95)
+local ROAD = Color3.fromRGB(196, 186, 170)
+local LAMP_IRON = Color3.fromRGB(60, 60, 70)
+local LAMP_GLOW = Color3.fromRGB(255, 225, 150)
+local FLOWER_COLORS = {
+	Color3.fromRGB(255, 80, 160),
+	Color3.fromRGB(255, 210, 60),
+	Color3.fromRGB(80, 230, 255),
+	Color3.fromRGB(180, 110, 255),
+	Color3.fromRGB(255, 120, 40),
+}
+
+-- Farola de hierro con bombilla cálida. La luz es suave para no saturar la plaza.
+local function lamp(parent: Instance, position: Vector3)
+	part(parent, "Farola", Vector3.new(0.8, 8, 0.8), CFrame.new(position + Vector3.new(0, 4, 0)), LAMP_IRON, Enum.Material.Metal)
+	local bulb = part(parent, "FarolaLuz", Vector3.new(2, 2, 2), CFrame.new(position + Vector3.new(0, 8.8, 0)), LAMP_GLOW, Enum.Material.Neon, Enum.PartType.Ball)
+	bulb.CanCollide = false
+	local light = Instance.new("PointLight")
+	light.Color = LAMP_GLOW
+	light.Range = 16
+	light.Brightness = 0.6
+	light.Parent = bulb
+end
+
+-- Macizo circular de césped con siete flores de neón alrededor.
+local function flowerBed(parent: Instance, center: Vector3, index: number)
+	flatDisc(parent, "Macizo", 2.6, 0.5, center + Vector3.new(0, 0.3, 0), Color3.fromRGB(70, 160, 70), Enum.Material.Grass)
+	for k = 0, 6 do
+		local angle = k * math.pi * 2 / 7
+		local spot = center + Vector3.new(math.cos(angle) * 2.2, 0.9, math.sin(angle) * 2.2)
+		part(parent, "Flor", Vector3.new(1.1, 1.1, 1.1), CFrame.new(spot), FLOWER_COLORS[(index + k) % #FLOWER_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
+	end
+end
 
 -- Camino de tierra plano entre dos puntos del suelo del hub.
 local function road(hub: Instance, a: Vector2, b: Vector2, heightAt: HeightAt)
@@ -160,7 +191,7 @@ local function road(hub: Instance, a: Vector2, b: Vector2, heightAt: HeightAt)
 	local dir = delta.Unit
 	local y = heightAt(mid.X, mid.Y) + 0.35
 	local cf = CFrame.lookAt(Vector3.new(mid.X, y, mid.Y), Vector3.new(mid.X, y, mid.Y) + Vector3.new(dir.X, 0, dir.Y))
-	part(hub, "Camino", Vector3.new(4, 0.3, delta.Magnitude), cf, ROAD, Enum.Material.Ground)
+	part(hub, "Camino", Vector3.new(4, 0.3, delta.Magnitude), cf, ROAD, Enum.Material.Cobblestone)
 end
 
 local function fountain(hub: Instance, center: Vector3)
@@ -204,8 +235,17 @@ function HubBuilder.build(heightAt: HeightAt)
 	local groundY = heightAt(0, 0)
 	local center = Vector3.new(0, groundY, 0)
 
-	-- Plaza de césped con círculos de arena y anillo de piedras de colores.
-	flatDisc(hub, "Plaza", 26, 0.4, center + Vector3.new(0, 0.2, 0), Color3.fromRGB(110, 220, 90), Enum.Material.Grass)
+	-- Plaza empedrada: anillo de adoquín y círculo de mármol en el centro, con farolas y macizos de flores alrededor.
+	flatDisc(hub, "Plaza", 26, 0.4, center + Vector3.new(0, 0.2, 0), Color3.fromRGB(196, 186, 170), Enum.Material.Cobblestone)
+	flatDisc(hub, "PlazaCentro", 18, 0.25, center + Vector3.new(0, 0.45, 0), Color3.fromRGB(236, 230, 220), Enum.Material.Marble)
+	for index = 0, 11 do
+		local angle = math.rad(index * 30 + 15)
+		lamp(hub, center + Vector3.new(math.cos(angle) * 22, 0.5, math.sin(angle) * 22))
+	end
+	for index = 0, 5 do
+		local angle = math.rad(index * 60)
+		flowerBed(hub, center + Vector3.new(math.cos(angle) * 21, 0.5, math.sin(angle) * 21), index)
+	end
 	for index = 0, 2 do
 		local angle = math.rad(60 + index * 120)
 		flatDisc(hub, "Arena", 5, 0.3, center + Vector3.new(math.cos(angle) * 17, 0.3, math.sin(angle) * 17), SAND, Enum.Material.Sand)
