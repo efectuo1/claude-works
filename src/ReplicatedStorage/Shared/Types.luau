@@ -27,10 +27,14 @@ export type DropTable = {
 	entries: { DropEntry },
 }
 
+-- Categoría = pestaña del inventario y forma del emblema. Oro y gemas no son ítems: viven en la cartera.
+export type ItemCategory = "pocion" | "llave" | "fruta" | "accesorio" | "material"
+
 export type ItemDef = {
 	id: string,
 	displayName: string,
 	rarity: Rarity,
+	category: ItemCategory,
 	maxStack: number, -- cantidad máxima por casilla de inventario
 }
 

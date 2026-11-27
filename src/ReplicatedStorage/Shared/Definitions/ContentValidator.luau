@@ -20,6 +20,7 @@ export type Content = {
 type Section = (Content) -> string?
 
 local VALID_RARITY: { [string]: boolean } = { Common = true, Rare = true, Epic = true, Legendary = true }
+local VALID_CATEGORY: { [string]: boolean } = { pocion = true, llave = true, fruta = true, accesorio = true, material = true }
 local VALID_KIND: { [string]: boolean } = { single = true, multi = true, area = true }
 
 local function validateItems(content: Content): string?
@@ -29,6 +30,9 @@ local function validateItems(content: Content): string?
 		end
 		if #item.displayName == 0 then
 			return `items.{key}: falta displayName`
+		end
+		if not VALID_CATEGORY[item.category] then
+			return `items.{key}: categoría desconocida ({item.category})`
 		end
 		if not VALID_RARITY[item.rarity] then
 			return `items.{key}: rareza desconocida ({item.rarity})`

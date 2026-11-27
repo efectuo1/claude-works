@@ -97,6 +97,7 @@ local function snapshot(level: number, inventory: { [string]: number }): Profile
 		inventory = inventory,
 		quests = { active = nil, completed = {} },
 		potions = {},
+		daily = { lastDay = 0, streak = 0 },
 	}
 end
 

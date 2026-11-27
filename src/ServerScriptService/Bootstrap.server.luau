@@ -112,6 +112,17 @@ local bossListRemote = Instance.new("RemoteFunction")
 bossListRemote.Name = "BossList"
 bossListRemote.Parent = remotes
 
+-- Premios: estado del regalo diario y del tiempo de juego, y reclamaciones (funciones: el cliente espera la respuesta).
+local rewardsStateRemote = Instance.new("RemoteFunction")
+rewardsStateRemote.Name = "RewardsState"
+rewardsStateRemote.Parent = remotes
+local claimDailyRemote = Instance.new("RemoteFunction")
+claimDailyRemote.Name = "ClaimDaily"
+claimDailyRemote.Parent = remotes
+local claimPlaytimeRemote = Instance.new("RemoteFunction")
+claimPlaytimeRemote.Name = "ClaimPlaytime"
+claimPlaytimeRemote.Parent = remotes
+
 -- Presencia: quién sigue en el servidor y quién se está yendo.
 local presence = PlayerPresence.new(function(userId: number)
 	return Players:GetPlayerByUserId(userId)
@@ -306,6 +317,7 @@ backpackRemote.OnServerInvoke = function(player: Player)
 				id = itemId,
 				name = def.displayName,
 				rarity = def.rarity,
+				category = def.category,
 				count = count,
 				desc = if potion then `XP x{potion.multiplier} durante {math.floor(potion.durationSeconds / 60)} min` else "Objeto de la partida",
 				use = if potion then "USAR" else "INFO",
@@ -569,6 +581,7 @@ local function snapshotFor(userId: number): ProfileSchema.ProfileData?
 		inventory = inventory.export(userId),
 		quests = quests.export(userId),
 		potions = potions.snapshot(userId),
+		daily = current.daily,
 	}
 end
 
@@ -622,6 +635,109 @@ startQuestRemote.OnServerEvent:Connect(function(player: Player, payload: unknown
 	end
 end)
 
+-- ---------- Regalo diario y premios por tiempo ----------
+-- Cada premio se entrega en un solo sitio. El ítem va primero: si no cabe, no se entrega nada a medias.
+local DailyReward = require(Shared.Util.DailyReward)
+local PlaytimeRewards = require(Shared.Util.PlaytimeRewards)
+local rewardsLimiter = RateLimiter.new(4, 1, serverNow)
+local playtimeStart: { [number]: number } = {}
+local playtimeClaimed: { [number]: { [number]: boolean } } = {}
+
+local function grantReward(userId: number, reward: { gold: number?, gems: number?, itemId: string?, quantity: number? }, source: string): Result.Result<boolean>
+	if reward.itemId ~= nil then
+		local added = inventory.add(userId, reward.itemId, reward.quantity or 1)
+		if not added.ok then
+			return Result.err(added.error)
+		end
+	end
+	if reward.gold ~= nil then
+		local granted = wallet.grantGold(userId, reward.gold, source)
+		if not granted.ok then
+			return Result.err(granted.error)
+		end
+	end
+	if reward.gems ~= nil then
+		local granted = wallet.grantGems(userId, reward.gems, source)
+		if not granted.ok then
+			return Result.err(granted.error)
+		end
+	end
+	return Result.ok(true)
+end
+
+-- Estado para la ventana de premios: racha, si hoy ya se reclamó y minutos de juego seguidos.
+local function rewardsState(userId: number)
+	local data = profiles.get(userId)
+	local today = DailyReward.dayOf(os.time())
+	local daily = DailyReward.status(if data then data.daily else DailyReward.empty(), today)
+	local start = playtimeStart[userId]
+	local elapsed = if start ~= nil then math.max(0, serverNow() - start) else 0
+	local claimedList: { number } = {}
+	for index in playtimeClaimed[userId] or {} do
+		table.insert(claimedList, index)
+	end
+	return {
+		streak = daily.streak,
+		nextStreak = daily.nextStreak,
+		claimedToday = daily.claimedToday,
+		cycleDay = daily.cycleDay,
+		elapsed = elapsed,
+		claimed = claimedList,
+	}
+end
+
+rewardsStateRemote.OnServerInvoke = function(player: Player)
+	if not rewardsLimiter.allow(player.UserId) then
+		return nil
+	end
+	return rewardsState(player.UserId)
+end
+
+claimDailyRemote.OnServerInvoke = function(player: Player)
+	if not rewardsLimiter.allow(player.UserId) then
+		return { ok = false, error = "demasiadas_peticiones" }
+	end
+	local data = profiles.get(player.UserId)
+	if data == nil then
+		return { ok = false, error = "perfil_no_cargado" }
+	end
+	local claim = DailyReward.claim(data.daily, DailyReward.dayOf(os.time()))
+	if not claim.ok then
+		return { ok = false, error = claim.error }
+	end
+	local granted = grantReward(player.UserId, claim.value.reward, "diario")
+	if not granted.ok then
+		return { ok = false, error = granted.error }
+	end
+	data.daily = claim.value.state
+	return { ok = true, streak = claim.value.streak, reward = claim.value.reward }
+end
+
+claimPlaytimeRemote.OnServerInvoke = function(player: Player, index: any)
+	if not rewardsLimiter.allow(player.UserId) then
+		return { ok = false, error = "demasiadas_peticiones" }
+	end
+	if typeof(index) ~= "number" then
+		return { ok = false, error = "payload_invalido" }
+	end
+	local start = playtimeStart[player.UserId]
+	if start == nil then
+		return { ok = false, error = "perfil_no_cargado" }
+	end
+	local claimed = playtimeClaimed[player.UserId] or {}
+	playtimeClaimed[player.UserId] = claimed
+	local result = PlaytimeRewards.claim(index, serverNow() - start, claimed)
+	if not result.ok then
+		return { ok = false, error = result.error }
+	end
+	local granted = grantReward(player.UserId, result.value, "tiempo")
+	if not granted.ok then
+		claimed[index] = nil -- no se gasta el hito si el premio no se pudo entregar
+		return { ok = false, error = granted.error }
+	end
+	return { ok = true, reward = result.value }
+end
+
 -- Jugadores: carga al entrar, liberación al salir, guardado periódico.
 PlayerLifecycle.connect({
 	players = Players,
@@ -633,6 +749,8 @@ PlayerLifecycle.connect({
 		abilities.releasePlayer(userId)
 		potions.releasePlayer(userId)
 		roulette.releasePlayer(userId)
+		playtimeStart[userId] = nil
+		playtimeClaimed[userId] = nil
 	end,
 	forgetRateLimits = function(userId: number)
 		castLimiter.forget(userId)
@@ -651,5 +769,8 @@ PlayerLifecycle.connect({
 			potions.restore(player.UserId, data.potions)
 			publishPotion(player.UserId)
 		end
+		-- El tiempo de juego cuenta desde que el perfil está listo.
+		playtimeStart[player.UserId] = serverNow()
+		playtimeClaimed[player.UserId] = {}
 	end,
 })

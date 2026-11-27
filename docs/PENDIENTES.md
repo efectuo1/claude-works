@@ -65,5 +65,6 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - Hecho: marcador de oleadas "Oleada N / 20 · Quedan X".
 - Hecho: sala de jefes con recuperación de caídas; XP escalada por dificultad (Normal x1, Difícil x1.5, Pesadilla x2, provisional).
 - Hecho: pociones guardadas en el perfil (esquema v5, segundos restantes).
-- Hecho: icono de regalo para pociones en la mochila.
-- Pendiente: iconos reales (rellenar UiAssets en Studio), pulido del resto de ventanas, frutas y jutsus, multiplicadores de pases de XP (los pases actuales solo afectan oro y gemas), pathfinding de mobs (la arena usa puentes con barandilla).
+- Hecho: inventario por categorías (pociones, llaves, frutas, accesorios, materiales) con emblemas propios; oro y gemas aparte.
+- Hecho: ventana PREMIOS con regalo diario (racha de 7 días, esquema v6) y premios por tiempo seguido (15/30/60/90/120 min, por sesión).
+- Pendiente: uso real de llaves, frutas y accesorios (sin efecto todavía); equipar accesorios; iconos reales (rellenar UiAssets en Studio), pulido del resto de ventanas, frutas y jutsus, multiplicadores de pases de XP (los pases actuales solo afectan oro y gemas), pathfinding de mobs (la arena usa puentes con barandilla).

@@ -36,6 +36,8 @@ local suiteNames = {
 	"InstanceRouter.spec",
 	"PotionTimer.spec",
 	"ModeLayout.spec",
+	"DailyReward.spec",
+	"PlaytimeRewards.spec",
 }
 
 local tests = ServerScriptService:WaitForChild("Tests")

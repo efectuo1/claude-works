@@ -10,6 +10,7 @@
 	- v3: experiencia (xp). Los perfiles antiguos reciben el XP mínimo de su nivel.
 	- v4: oro, gemas y rango. Los perfiles antiguos empiezan con 0 y rango novato.
 	- v5: pociones activas y en cola (segundos restantes). Los perfiles antiguos empiezan sin pociones.
+	- v6: regalo diario (último día reclamado y racha). Los perfiles antiguos empiezan sin racha.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -37,9 +38,10 @@ export type ProfileData = {
 	gems: number,
 	rank: string,
 	potions: { SavedPotion },
+	daily: { lastDay: number, streak: number },
 }
 
-local CURRENT_VERSION = 5
+local CURRENT_VERSION = 6
 local CONTENT_VERSION = 1
 
 -- MIGRATIONS[v] convierte datos de la versión v a v + 1. Nunca se editan migraciones ya publicadas.
@@ -84,6 +86,15 @@ local MIGRATIONS: { [number]: (raw: { [string]: unknown }) -> { [string]: unknow
 		out.potions = {}
 		return out
 	end,
+	[5] = function(raw)
+		local out: { [string]: unknown } = {}
+		for key, value in raw do
+			out[key] = value
+		end
+		out.schemaVersion = 6
+		out.daily = { lastDay = 0, streak = 0 }
+		return out
+	end,
 }
 
 local ProfileSchema = {}
@@ -103,6 +114,7 @@ function ProfileSchema.defaults(): ProfileData
 		gems = 0,
 		rank = "novato",
 		potions = {},
+		daily = { lastDay = 0, streak = 0 },
 	}
 end
 
@@ -217,6 +229,19 @@ function ProfileSchema.validate(raw: unknown): Result.Result<ProfileData>
 		table.insert(potions, { kind = kind, multiplier = multiplier, seconds = seconds })
 	end
 
+	local rawDaily = data.daily
+	if type(rawDaily) ~= "table" then
+		return Result.err("profile_corrupt")
+	end
+	local daily = rawDaily :: { [string]: unknown }
+	local lastDay, streak = daily.lastDay, daily.streak
+	if type(lastDay) ~= "number" or lastDay % 1 ~= 0 or lastDay < 0 then
+		return Result.err("profile_corrupt")
+	end
+	if type(streak) ~= "number" or streak % 1 ~= 0 or streak < 0 then
+		return Result.err("profile_corrupt")
+	end
+
 	return Result.ok({
 		schemaVersion = CURRENT_VERSION,
 		contentVersion = contentVersion,
@@ -228,6 +253,7 @@ function ProfileSchema.validate(raw: unknown): Result.Result<ProfileData>
 		gems = gems,
 		rank = rank,
 		potions = potions,
+		daily = { lastDay = lastDay, streak = streak },
 	})
 end
 

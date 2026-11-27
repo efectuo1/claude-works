@@ -384,39 +384,33 @@ local function fetchBackpack(): { any }
 	return list
 end
 
+local InventoryWindow = require(ReplicatedStorage.Ui.InventoryWindow)
+local RewardsWindow = require(ReplicatedStorage.Ui.RewardsWindow)
+
+-- Inventario: todos los objetos de la mochila por categoría. Oro y gemas no están aquí.
 local function buildBackpack(): ScreenGui
 	local items: { any } = {}
 	for _, it in fetchBackpack() do
-		-- Icono por tipo: las pociones tienen su regalo; el resto, la estrella hasta que haya arte propio.
-		local art = if Potions[it.id] ~= nil then M.ART.gift else M.ART.star
-		table.insert(items, { id = it.id, name = it.name, rarity = it.rarity, art = art, desc = it.desc, stats = it.stats, use = it.use })
+		table.insert(items, {
+			id = it.id,
+			name = it.name,
+			rarity = it.rarity,
+			category = it.category or "material",
+			count = it.count or 1,
+			desc = it.desc,
+			stats = it.stats,
+			use = it.use,
+		})
 	end
-	if #items == 0 then
-		table.insert(items, { id = "vacio", name = "Vacía", rarity = "Common", art = M.ART.star, desc = "Aún no tienes objetos.", stats = {}, use = "INFO" })
-	end
-	local gui = M.backpack(pg, { sections = { { name = "Objetos", icon = M.ART.star, color = M.COLOR.green, items = items } } })
-	M.live(gui, {
-		-- el kit marca cada cuadro con la acción "pick": sin esto, pulsar un objeto no lo selecciona
-		pick = function(offer: any)
-			M.selectItem(gui, tostring(offer))
-		end,
-		use = function(offer: any)
-			local id = offer
-			if type(id) ~= "string" then
-				id = gui:GetAttribute("Selected")
-			end
-			if type(id) ~= "string" or id == "vacio" then
-				return
-			end
-			-- Solo las pociones se pueden usar por ahora; el resto de objetos avisa.
-			if Potions[id] == nil then
-				showNotice("Mochila", "Este objeto todavía no se puede usar.")
-			elseif usePotionRemote ~= nil then
+	return InventoryWindow.build(pg, {
+		items = items,
+		onUse = function(id: string)
+			if usePotionRemote ~= nil then
 				usePotionRemote:FireServer({ itemId = id })
 			end
 		end,
+		notice = showNotice,
 	})
-	return gui
 end
 
 local function refreshBackpack()
@@ -430,6 +424,11 @@ local function refreshBackpack()
 	end
 end
 screens.FolkMochila = buildBackpack()
+
+-- Premios: regalo diario (racha de 7 días) y premios por tiempo seguido.
+if remotes ~= nil then
+	screens.FolkPremios = RewardsWindow.build(pg, { remotes = remotes :: Folder, notice = showNotice })
+end
 screens.FolkMochila.Enabled = false
 addSection("FolkMejoras", "Mejoras", "Las mejoras de frutas y jutsus llegarán en una próxima parte.\nMientras tanto, sube de rango para desbloquear más ganancias.")
 addSection("FolkIndice", "Índice", "Tienda: cambia oro y gemas, y mira los pases.\nRango: sube de nivel para multiplicar tus ganancias.\nModos: oleadas en la arena.\nAjustes y frutas: pronto.")
@@ -452,6 +451,7 @@ local right = M.hud(pg, {
 	buttons = {
 		{ label = "FRUTAS", icon = UiAssets.get("frutas") or M.ART.star, color = M.COLOR.orange, opens = "FolkFrutas" },
 		{ label = "MODOS", icon = UiAssets.get("modos") or M.ART.star, color = M.COLOR.purple, opens = "FolkModos" },
+		{ label = "PREMIOS", icon = M.ART.gift, color = M.COLOR.amber, opens = "FolkPremios" },
 		{ label = "INICIO", icon = UiAssets.get("inicio") or M.ART.star, color = M.COLOR.pink, opens = "FolkInicio" },
 		{ label = "AJUSTES", icon = UiAssets.get("ajustes") or M.ART.star, color = M.COLOR.crimson, opens = "FolkAjustes" },
 	},

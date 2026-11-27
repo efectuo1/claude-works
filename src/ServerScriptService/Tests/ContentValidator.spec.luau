@@ -7,7 +7,7 @@ local TestHarness = require(script.Parent.TestHarness)
 local function validContent(): ContentValidator.Content
 	return {
 		items = {
-			a = { id = "a", displayName = "A", rarity = "Common", maxStack = 10 },
+			a = { id = "a", displayName = "A", rarity = "Common", category = "material", maxStack = 10 },
 		},
 		abilities = {},
 		dropTables = {
