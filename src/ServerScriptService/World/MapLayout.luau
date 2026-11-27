@@ -16,15 +16,15 @@ export type Surface = "Rock" | "Sand" | "Grass" | "Stone"
 
 local MapLayout = {}
 
-MapLayout.HALF_SIZE = 320 -- el mapa va de -320 a 320 en X y en Z (640 studs)
+MapLayout.HALF_SIZE = 480 -- el mapa va de -480 a 480 en X y en Z (960 studs)
 MapLayout.FLAT_HEIGHT = 2
 MapLayout.BLEND = 30 -- studs de transición desde una zona plana hasta el relieve
 MapLayout.EDGE_WIDTH = 24 -- franja de roca en el borde del mapa
 
 -- Isla: meseta circular rodeada de mar. Dentro, la tierra tiene poco relieve; el borde cae en
 -- un acantilado de roca hasta el fondo del mar. Fuera de la isla no hay tierra, solo agua.
-MapLayout.ISLAND_RADIUS = 255
-MapLayout.RIM_WIDTH = 50 -- anchura del acantilado de roca que baja desde la meseta
+MapLayout.ISLAND_RADIUS = 380
+MapLayout.RIM_WIDTH = 60 -- anchura del acantilado de roca que baja desde la meseta
 MapLayout.SEA_FLOOR = -10 -- altura del fondo del mar
 MapLayout.SEA_LEVEL = 0 -- nivel del agua
 

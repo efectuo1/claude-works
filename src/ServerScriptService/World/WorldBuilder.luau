@@ -18,7 +18,7 @@ local ModeArenaBuilder = require(script.Parent.ModeArenaBuilder)
 local WorldBuilder = {}
 
 local MAP_HALF = MapLayout.HALF_SIZE
-local VOXEL = 4 -- resolución del terreno en studs (múltiplo de 4 para alinear la región)
+local VOXEL = 8 -- resolución del terreno en studs (mapa grande: 8 para no pasar de millones de voxels)
 local MIN_Y = -24
 local MAX_Y = 48
 local SPAWN_XZ = MapLayout.spawnPoints()
@@ -84,8 +84,8 @@ local function buildTerrain()
 
 	local region = Region3.new(Vector3.new(-MAP_HALF, MIN_Y, -MAP_HALF), Vector3.new(MAP_HALF, MAX_Y, MAP_HALF))
 	terrain:WriteVoxels(region, VOXEL, materials, occupancy)
-	terrain.WaterColor = Color3.fromRGB(70, 200, 235)
-	terrain.WaterTransparency = 0.45
+	terrain.WaterColor = Color3.fromRGB(60, 215, 240)
+	terrain.WaterTransparency = 0.5
 	terrain.WaterWaveSize = 0.15
 end
 
@@ -183,7 +183,7 @@ local function buildDecor()
 
 	-- Árboles de copa redonda: tronco marrón y tres bolas de verde que no bloquean a los mobs.
 	local CANOPY = { Color3.fromRGB(70, 160, 80), Color3.fromRGB(45, 135, 75), Color3.fromRGB(115, 195, 95) }
-	for i = 1, 90 do
+	for i = 1, 260 do
 		local p = randomPoint(6)
 		local base = height(p.X, p.Y)
 		local trunkHeight = rng:NextNumber(8, 11)
