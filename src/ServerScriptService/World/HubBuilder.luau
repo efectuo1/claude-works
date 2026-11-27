@@ -151,6 +151,18 @@ local function bush(parent: Instance, position: Vector3, rng: Random)
 end
 
 -- Fuente central grande: escalones de piedra, cuenco con agua y chorro con chispas.
+local ROAD = Color3.fromRGB(176, 140, 95)
+
+-- Camino de tierra plano entre dos puntos del suelo del hub.
+local function road(hub: Instance, a: Vector2, b: Vector2, heightAt: HeightAt)
+	local mid = (a + b) / 2
+	local delta = b - a
+	local dir = delta.Unit
+	local y = heightAt(mid.X, mid.Y) + 0.35
+	local cf = CFrame.lookAt(Vector3.new(mid.X, y, mid.Y), Vector3.new(mid.X, y, mid.Y) + Vector3.new(dir.X, 0, dir.Y))
+	part(hub, "Camino", Vector3.new(4, 0.3, delta.Magnitude), cf, ROAD, Enum.Material.Ground)
+end
+
 local function fountain(hub: Instance, center: Vector3)
 	flatDisc(hub, "FuenteEscalon", 9, 0.6, center + Vector3.new(0, 0.3, 0), FOUNTAIN_STONE, Enum.Material.Slate)
 	flatDisc(hub, "FuenteCuenco", 7, 1.2, center + Vector3.new(0, 1.2, 0), FOUNTAIN_STONE, Enum.Material.Marble)
@@ -205,6 +217,11 @@ function HubBuilder.build(heightAt: HeightAt)
 	end
 
 	fountain(hub, center)
+
+	-- Caminos de tierra como en la referencia: una calle por las entradas del oeste y un camino a la tienda.
+	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, -16), Vector2.new(HOUSE_X + PAD_OFFSET, 16), heightAt)
+	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, 0), Vector2.new(-4, 0), heightAt)
+	road(hub, Vector2.new(4, 0), Vector2.new(SHOP_X - 2, 0), heightAt)
 
 	-- Casas de modalidad al oeste, con la puerta hacia la fuente y un pad delante.
 	for _, mode in MODE_HOUSES do

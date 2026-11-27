@@ -170,19 +170,6 @@ local function buildDecor()
 		end
 	end
 
-	for i = 1, 80 do
-		local p = randomPoint(4)
-		local size = Vector3.new(rng:NextNumber(3, 7), rng:NextNumber(2, 6), rng:NextNumber(3, 7))
-		local rock = Instance.new("Part")
-		rock.Name = `Roca_{i}`
-		rock.Anchored = true
-		rock.Material = Enum.Material.Slate
-		rock.Color = Color3.fromRGB(140, 100, 150)
-		rock.Size = size
-		rock.CFrame = CFrame.new(p.X, height(p.X, p.Y) + size.Y / 2, p.Y)
-		rock.Parent = decor
-	end
-
 	for i = 1, 120 do
 		local p = randomPoint(4)
 		local base = height(p.X, p.Y)
