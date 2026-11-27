@@ -387,7 +387,9 @@ end
 local function buildBackpack(): ScreenGui
 	local items: { any } = {}
 	for _, it in fetchBackpack() do
-		table.insert(items, { id = it.id, name = it.name, rarity = it.rarity, art = M.ART.star, desc = it.desc, stats = it.stats, use = it.use })
+		-- Icono por tipo: las pociones tienen su regalo; el resto, la estrella hasta que haya arte propio.
+		local art = if Potions[it.id] ~= nil then M.ART.gift else M.ART.star
+		table.insert(items, { id = it.id, name = it.name, rarity = it.rarity, art = art, desc = it.desc, stats = it.stats, use = it.use })
 	end
 	if #items == 0 then
 		table.insert(items, { id = "vacio", name = "Vacía", rarity = "Common", art = M.ART.star, desc = "Aún no tienes objetos.", stats = {}, use = "INFO" })
