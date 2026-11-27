@@ -243,6 +243,15 @@ function JefesService.new(deps: Dependencies)
 		return current ~= nil and current.players[userId] == true
 	end
 
+	-- Multiplicador de XP por dificultad mientras el jugador está dentro (1 fuera de partida).
+	function service.difficultyMult(userId: number): number
+		local current = run
+		if current ~= nil and current.players[userId] == true then
+			return current.healthMult
+		end
+		return 1
+	end
+
 	-- Salir: el jugador vuelve al mundo; si queda sin nadie, la partida se cierra.
 	function service.leave(userId: number)
 		local current = run
@@ -282,6 +291,24 @@ function JefesService.new(deps: Dependencies)
 	local exitPad = PadBuilder.build(folder, "SalidaJefes", Vector3.new(exitSpot.X, ModeLayout.deckY() + 0.3, exitSpot.Y), Color3.fromRGB(150, 150, 165), "Salir")
 	PadBuilder.prompt(exitPad, "Salir de la sala", "Jefes", function(player: Player)
 		service.leave(player.UserId)
+	end)
+
+	-- Quien se cae de un puente o del lobby vuelve a la arena del jefe, dentro de la sala.
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			local current = run
+			if current ~= nil then
+				for userId in current.players do
+					local player = Players:GetPlayerByUserId(userId)
+					local character = if player then player.Character else nil
+					local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+					if root ~= nil and root.Position.Y < ModeLayout.deckY() - ModeLayout.FALL_DEPTH then
+						teleport(userId, deps.bossPosition)
+					end
+				end
+			end
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)

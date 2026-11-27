@@ -358,6 +358,15 @@ function WaveService.new(deps: Dependencies)
 		return current ~= nil and current.players[userId] == true
 	end
 
+	-- Multiplicador de XP por dificultad mientras el jugador está dentro (1 fuera de partida).
+	function service.difficultyMult(userId: number): number
+		local current = run
+		if current ~= nil and current.players[userId] == true then
+			return current.healthMult
+		end
+		return 1
+	end
+
 	-- Un pad visible por dificultad, en el lobby de la arena. Pisarlo no hace nada: se usa el prompt.
 	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
 	local ORDER = { "normal", "dificil", "pesadilla" }

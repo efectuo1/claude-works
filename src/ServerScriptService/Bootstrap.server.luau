@@ -176,14 +176,25 @@ local potionMultiplier: (number) -> number = function(_userId: number): number
 	return 1
 end
 
--- Cada jugador que contribuyó a la baja recibe el XP del mob (x pociones).
+-- XP extra según la dificultad de la partida en curso (oleadas o jefes). Fuera de partida vale 1.
+local function difficultyXpMult(userId: number): number
+	if waveService ~= nil and waveService.isInside(userId) then
+		return waveService.difficultyMult(userId)
+	end
+	if jefesService ~= nil and jefesService.isInside(userId) then
+		return jefesService.difficultyMult(userId)
+	end
+	return 1
+end
+
+-- Cada jugador que contribuyó a la baja recibe el XP del mob (x pociones x dificultad).
 events.mobKilled.connect(function(event)
 	local mobDef = MobDefs[event.mobDefId]
 	if mobDef == nil then
 		return
 	end
 	for _, userId in event.contributorUserIds do
-		local granted = progression.grant(userId, math.floor(mobDef.xp * potionMultiplier(userId)))
+		local granted = progression.grant(userId, math.floor(mobDef.xp * potionMultiplier(userId) * difficultyXpMult(userId)))
 		if not granted.ok then
 			warn(`[XP] no se pudo dar XP a {userId}: {granted.error}`)
 		end
