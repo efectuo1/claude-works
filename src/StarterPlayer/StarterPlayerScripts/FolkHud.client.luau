@@ -844,13 +844,41 @@ local WAVE_ERRORS: { [string]: string } = {
 	en_partida = "Sal de la partida actual antes de ir a otra modalidad",
 }
 local waveFx = if remotes then remotes:FindFirstChild("WaveFx") :: RemoteEvent? else nil
+-- Marcador de la partida: oleada, si es de jefe y cuántos mobs quedan vivos.
+local waveState = { wave = 0, total = 20, boss = false, alive = nil :: number? }
+local function renderWave()
+	if waveState.wave == 0 then
+		waveLabel.Text = ""
+		return
+	end
+	local text = `Oleada {waveState.wave} / {waveState.total}`
+	if waveState.boss then
+		text ..= "  ·  JEFE"
+	end
+	if waveState.alive ~= nil then
+		text ..= `  ·  Quedan {waveState.alive}`
+	end
+	waveLabel.Text = text
+end
+local function clearWave()
+	waveState.wave = 0
+	waveState.alive = nil
+	renderWave()
+end
+
 if waveFx ~= nil then
 	waveFx.OnClientEvent:Connect(function(payload: any)
 		if payload.kind == "wave" then
-			waveLabel.Text = `Oleada {payload.wave} / {payload.total}` .. (if payload.boss then "  ·  JEFE" else "")
+			waveState.wave = payload.wave
+			waveState.total = payload.total
+			waveState.boss = payload.boss == true
+			renderWave()
+		elseif payload.kind == "alive" then
+			waveState.alive = payload.alive
+			renderWave()
 		elseif payload.kind == "end" and payload.boss ~= nil then
 			-- Fin de una sala de jefes.
-			waveLabel.Text = ""
+			clearWave()
 			if payload.result == "victoria" then
 				showNotice("¡Jefe derrotado!", "Recompensa de jefe entregada.")
 			elseif payload.result == "derrota" then
@@ -862,7 +890,7 @@ if waveFx ~= nil then
 			end
 			task.spawn(refreshModesWindow)
 		elseif payload.kind == "end" then
-			waveLabel.Text = ""
+			clearWave()
 			if payload.result == "victoria" then
 				showNotice("¡Oleadas superadas!", "Has superado las 20 oleadas.")
 			elseif payload.result == "derrota" then

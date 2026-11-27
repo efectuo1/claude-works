@@ -75,6 +75,15 @@ local function isBossWave(wave: number): boolean
 	return info.value.miniBoss or info.value.finalBoss
 end
 
+-- Mobs de la partida que siguen vivos. Cada muerte los quita de current.mobs.
+local function aliveCount(current: Run): number
+	local n = 0
+	for _ in current.mobs do
+		n += 1
+	end
+	return n
+end
+
 local function countPlayers(run: Run): number
 	local n = 0
 	for _ in run.players do
@@ -165,6 +174,7 @@ function WaveService.new(deps: Dependencies)
 		if run ~= current then
 			return -- la partida ya terminó: el reparto de esta muerte ya está hecho
 		end
+		notifyAll(current, { kind = "alive", alive = aliveCount(current) })
 		local clearedWave = current.session.wave
 		local nextSession, change = WaveSession.mobsKilled(current.session, 1)
 		current.session = nextSession
@@ -179,6 +189,7 @@ function WaveService.new(deps: Dependencies)
 			task.delay(NEXT_WAVE_DELAY, function()
 				if run == current then
 					spawnWave(current, current.session.wave)
+					notifyAll(current, { kind = "alive", alive = aliveCount(current) })
 				end
 			end)
 		elseif change == "victoria" then
@@ -335,6 +346,7 @@ function WaveService.new(deps: Dependencies)
 		watchDeath(userId)
 		notifyAll(opened, { kind = "wave", wave = 1, total = WaveRules.MAX_WAVES, boss = isBossWave(1) })
 		spawnWave(opened, 1)
+		notifyAll(opened, { kind = "alive", alive = aliveCount(opened) })
 		return Result.ok(true)
 	end
 
