@@ -61,6 +61,9 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - [ ] Ambas modalidades comparten el canal WaveFx. El cliente distingue jefe de oleadas por el campo "boss" del mensaje "end".
 
 ## Modalidades y UI (sin probar en Studio todavía)
-- Ventana de modalidades (FolkModos): tarjetas de oleadas y jefes, botón "IR A LA ENTRADA" (remoto GoToMode, servidor teletransporta; no deja cambiar de modalidad dentro de una partida).
-- Marcador de oleadas: "Oleada N / 20 · Quedan X" (aviso "alive" del servidor tras cada muerte y cada oleada).
-- Pendiente: arte de la mochila (iconos reales), pulido general del kit en el resto de ventanas, pass/dificultad sin multiplicadores de XP, pociones sin persistencia, pathfinding de mobs (ahora se usan puentes con barandilla).
+- Hecho: ventana de modalidades con tarjetas y botón "IR A LA ENTRADA" (GoToMode; no deja cambiar de modalidad dentro de una partida).
+- Hecho: marcador de oleadas "Oleada N / 20 · Quedan X".
+- Hecho: sala de jefes con recuperación de caídas; XP escalada por dificultad (Normal x1, Difícil x1.5, Pesadilla x2, provisional).
+- Hecho: pociones guardadas en el perfil (esquema v5, segundos restantes).
+- Hecho: icono de regalo para pociones en la mochila.
+- Pendiente: iconos reales (rellenar UiAssets en Studio), pulido del resto de ventanas, frutas y jutsus, multiplicadores de pases de XP (los pases actuales solo afectan oro y gemas), pathfinding de mobs (la arena usa puentes con barandilla).
