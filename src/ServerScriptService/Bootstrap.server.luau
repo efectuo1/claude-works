@@ -107,6 +107,7 @@ backpackRemote.Parent = remotes
 -- Lista de jefes con requisito para la ventana de modalidades. El cliente la pide al abrirla.
 -- El manejador se asigna más abajo, cuando existen perfiles y el servicio de jefes.
 local jefesService: any = nil
+local waveService: any = nil
 local bossListRemote = Instance.new("RemoteFunction")
 bossListRemote.Name = "BossList"
 bossListRemote.Parent = remotes
@@ -415,7 +416,7 @@ if not built.ok then
 end
 local world = WorldBootstrap.start(events, serverNow)
 if world ~= nil then
-	WaveService.new({
+	waveService = WaveService.new({
 		router = instances,
 		events = events,
 		controller = world.controller,
@@ -468,6 +469,32 @@ if world ~= nil then
 		end,
 	})
 end
+
+-- Ir a la entrada de una modalidad desde la ventana de modalidades. El servidor teletransporta.
+-- No se permite si el jugador ya está dentro de una partida: primero debe salir.
+local goToModeRemote = createRemote("GoToMode")
+local goToModeLimiter = RateLimiter.new(3, 1, serverNow)
+goToModeRemote.OnServerEvent:Connect(function(player: Player, payload: any)
+	if not goToModeLimiter.allow(player.UserId) then
+		return
+	end
+	if typeof(payload) ~= "table" or (payload.mode ~= "wave" and payload.mode ~= "boss") then
+		return
+	end
+	local character = player.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+	if character == nil or root == nil then
+		return
+	end
+	local inside = (waveService ~= nil and waveService.isInside(player.UserId)) or (jefesService ~= nil and jefesService.isInside(player.UserId))
+	if inside then
+		waveFxRemote:FireClient(player, { kind = "wave_error", error = "en_partida" })
+		return
+	end
+	local destination = if payload.mode == "wave" then ModeLayout.waveLobby() else ModeLayout.bossLobby()
+	character:PivotTo(CFrame.new(destination))
+	root.AssemblyLinearVelocity = Vector3.zero
+end)
 
 -- Ruleta del hub: el premio se elige en servidor y se entrega aquí.
 -- Oro y gemas se entregan de verdad. Frutas y jutsus no tienen catálogo todavía: el giro no se gasta.

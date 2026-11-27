@@ -432,7 +432,6 @@ screens.FolkMochila.Enabled = false
 addSection("FolkMejoras", "Mejoras", "Las mejoras de frutas y jutsus llegarán en una próxima parte.\nMientras tanto, sube de rango para desbloquear más ganancias.")
 addSection("FolkIndice", "Índice", "Tienda: cambia oro y gemas, y mira los pases.\nRango: sube de nivel para multiplicar tus ganancias.\nModos: oleadas en la arena.\nAjustes y frutas: pronto.")
 addSection("FolkFrutas", "Frutas y jutsus", "Por ahora combates con las habilidades 1 a 4, o con los botones de abajo.\nLas frutas se añadirán más adelante.")
-addSection("FolkModos", "Modalidades", "Oleadas: 20 oleadas y un jefe final. Entra por el portal de la arena.")
 addSection("FolkInicio", "Inicio", "Bienvenido. Mata zombis para ganar oro y gemas.\nEntra al portal de oleadas cuando quieras un reto.\nAbre la tienda para cambiar oro por gemas.")
 addSection("FolkAjustes", "Ajustes", "Los ajustes de sonido y gráficos llegarán en una próxima parte.")
 
@@ -729,12 +728,76 @@ if walletFx ~= nil then
 	end)
 end
 
--- Modalidad de oleadas: marcador y avisos de la partida.
--- Ventana de modalidades: lista de jefes con su requisito. Se pide al servidor al abrirla y al subir de nivel.
-local modesNotice = screens.FolkModos
+-- Ventana de modalidades: una tarjeta por modalidad, con su descripción y un botón que lleva a la entrada.
+-- La lista de jefes (nivel mínimo y si está bloqueado) viene del servidor al abrirla y al subir de nivel.
+local goToModeRemote = if remotes then remotes:FindFirstChild("GoToMode") :: RemoteEvent? else nil
+local bossList = if remotes then remotes:FindFirstChild("BossList") :: RemoteFunction? else nil
+
+local function buildModesWindow(): ScreenGui
+	local W, Hh = 880, 640
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "FolkModos"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 40
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Enabled = false
+	gui:SetAttribute("FolkStud", "modes")
+	gui:SetAttribute("NeedW", W + 64)
+	gui:SetAttribute("NeedH", Hh + 90)
+	gui.Parent = pg
+
+	local root = H.new("Frame", { Name = "Root", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(W, Hh) }, gui)
+	H.new("UIScale", { Name = "Fit" }, root)
+	local stage = H.new("Frame", { Name = "Stage", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, root)
+	H.new("UIScale", { Name = "Pop" }, stage)
+
+	H.shadow(stage, "Sombra", 0, 6, W, Hh, 14, 1)
+	local win = H.rect(stage, "Window", 0, 0, W, Hh, 14, 1)
+	H.ink(win, 4)
+	H.studs(win, Vector2.new(50, 46), 0.8, 12, 1)
+	H.text(stage, "Title", "Modalidades", W / 2, 0, 50, 8)
+	local close = H.button(stage, "Close", W - 42, -26, 66, 70, 12, M.COLOR.red, 9, { plain = true, action = "close" })
+	H.text(close, "X", "X", 33, 32, 56, 10)
+
+	local cardW = (W - 90) / 2
+	local function modeCard(id: string, x: number, pal: { Color3 }, heading: string, body: string, offer: string): TextLabel
+		local card = H.rect(stage, id, x, 110, cardW, 470, 16, 2)
+		H.grad(card, pal[1], pal[3])
+		H.ink(card, 4)
+		H.text(card, "Titulo", heading, cardW / 2, 46, 44, 5)
+		local text = H.text(card, "Body", body, cardW / 2, 230, 22, 5)
+		local btn = H.button(card, "Ir", (cardW - 320) / 2, 390, 320, 60, 16, M.COLOR.lime, 5, { action = "go", offer = offer })
+		H.text(btn, "Label", "IR A LA ENTRADA", 160, 30, 30, btn.ZIndex + 1)
+		return text :: TextLabel
+	end
+
+	local oleadasBody = table.concat({
+		"20 oleadas contra mobs que crecen cada ronda.",
+		"",
+		"Llegas a la arena y eliges dificultad",
+		"en los pads verdes del lobby.",
+		"",
+		"Hasta 4 jugadores · sin requisito",
+	}, "\n")
+	modeCard("Oleadas", 30, M.COLOR.lime, "OLEADAS", oleadasBody, "wave")
+	modeCard("Jefes", 60 + cardW, M.COLOR.red, "JEFES", "Cargando jefes...", "boss")
+
+	M.live(gui, {
+		go = function(offer: any)
+			if goToModeRemote ~= nil then
+				goToModeRemote:FireServer({ mode = tostring(offer) })
+			end
+		end,
+	})
+	return gui
+end
+
+local modesGui = buildModesWindow()
+screens.FolkModos = modesGui
 local refreshModesWindow: () -> ()
 refreshModesWindow = function()
-	local lines = { "Oleadas: 20 oleadas y un jefe final. Entra por el portal de la arena." }
+	local lines = { "Entrada: pads rojos en la sala de jefes.", "Hasta 4 jugadores.", "" }
 	local okList, list = false, nil
 	if bossList ~= nil then
 		local remote = bossList :: RemoteFunction
@@ -743,25 +806,26 @@ refreshModesWindow = function()
 		end)
 	end
 	if okList and type(list) == "table" and #list > 0 then
-		table.insert(lines, "Jefes:")
 		for _, boss in list do
-			local state = if boss.locked then `nivel {boss.minLevel} (bloqueado)` else "disponible"
+			local state = if boss.locked then `nivel {boss.minLevel} · bloqueado` else "disponible"
 			table.insert(lines, `{boss.name}: {state}`)
 		end
 	else
-		table.insert(lines, "Jefes: no disponibles ahora.")
+		table.insert(lines, "No hay jefes disponibles ahora.")
 	end
-	if modesNotice ~= nil then
-		setLabel(modesNotice.Root.Stage, "Body", table.concat(lines, "\n"))
+	table.insert(lines, "")
+	table.insert(lines, `Tu nivel: {attributeNumber("Level")}`)
+	local jefes = modesGui:FindFirstChild("Jefes", true)
+	local body = if jefes then jefes:FindFirstChild("Body") else nil
+	if body ~= nil and body:IsA("TextLabel") then
+		body.Text = table.concat(lines, "\n")
 	end
 end
-if modesNotice ~= nil then
-	modesNotice:GetPropertyChangedSignal("Enabled"):Connect(function()
-		if modesNotice.Enabled then
-			task.spawn(refreshModesWindow)
-		end
-	end)
-end
+modesGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if modesGui.Enabled then
+		task.spawn(refreshModesWindow)
+	end
+end)
 player:GetAttributeChangedSignal("Level"):Connect(function()
 	task.spawn(refreshModesWindow)
 end)
@@ -777,9 +841,9 @@ local WAVE_ERRORS: { [string]: string } = {
 	nivel_insuficiente = "Te falta nivel para este jefe",
 	otro_jefe_en_curso = "Ya hay otro jefe en curso",
 	partida_llena = "La sala está llena (4 jugadores)",
+	en_partida = "Sal de la partida actual antes de ir a otra modalidad",
 }
 local waveFx = if remotes then remotes:FindFirstChild("WaveFx") :: RemoteEvent? else nil
-local bossList = if remotes then remotes:FindFirstChild("BossList") :: RemoteFunction? else nil
 if waveFx ~= nil then
 	waveFx.OnClientEvent:Connect(function(payload: any)
 		if payload.kind == "wave" then

@@ -237,6 +237,12 @@ function JefesService.new(deps: Dependencies)
 		return Result.ok(true)
 	end
 
+	-- ¿Está este jugador dentro de una sala de jefes?
+	function service.isInside(userId: number): boolean
+		local current = run
+		return current ~= nil and current.players[userId] == true
+	end
+
 	-- Salir: el jugador vuelve al mundo; si queda sin nadie, la partida se cierra.
 	function service.leave(userId: number)
 		local current = run

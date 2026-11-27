@@ -340,6 +340,12 @@ function WaveService.new(deps: Dependencies)
 
 	service.leave = leave
 
+	-- ¿Está este jugador dentro de una partida de oleadas?
+	function service.isInside(userId: number): boolean
+		local current = run
+		return current ~= nil and current.players[userId] == true
+	end
+
 	-- Un pad visible por dificultad, en el lobby de la arena. Pisarlo no hace nada: se usa el prompt.
 	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
 	local ORDER = { "normal", "dificil", "pesadilla" }
