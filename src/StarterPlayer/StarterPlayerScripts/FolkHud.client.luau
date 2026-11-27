@@ -394,15 +394,22 @@ local function buildBackpack(): ScreenGui
 	end
 	local gui = M.backpack(pg, { sections = { { name = "Objetos", icon = M.ART.star, color = M.COLOR.green, items = items } } })
 	M.live(gui, {
-		use = function()
-			local id = gui:GetAttribute("Selected")
+		-- el kit marca cada cuadro con la acción "pick": sin esto, pulsar un objeto no lo selecciona
+		pick = function(offer: any)
+			M.selectItem(gui, tostring(offer))
+		end,
+		use = function(offer: any)
+			local id = offer
 			if type(id) ~= "string" then
+				id = gui:GetAttribute("Selected")
+			end
+			if type(id) ~= "string" or id == "vacio" then
 				return
 			end
-			local holder = gui.Root.Stage.Window.Scroll.Content:FindFirstChild("Item" .. id)
-			local tile = if holder then holder:FindFirstChild("Tile") else nil
-			-- Solo las pociones tienen USAR; el resto de objetos no hace nada todavía.
-			if tile ~= nil and tile:GetAttribute("UseLabel") == "USAR" and usePotionRemote ~= nil then
+			-- Solo las pociones se pueden usar por ahora; el resto de objetos avisa.
+			if Potions[id] == nil then
+				showNotice("Mochila", "Este objeto todavía no se puede usar.")
+			elseif usePotionRemote ~= nil then
 				usePotionRemote:FireServer({ itemId = id })
 			end
 		end,
@@ -536,18 +543,61 @@ coinImage(goldCoin, "coin")
 coinImage(gemCoin, "gem")
 H.text(walletCard, "Gemas", "0", 72, 81, 34, 4, nil, "left")
 
--- Pociones activas: multiplicador y tiempo restante. El servidor lo publica como atributos.
-local boostLabel = H.text(design, "Boost", "", 1568, 352, 28, 12)
+-- Poción activa: tarjeta abajo a la izquierda con frasco, multiplicador, tiempo y barra que se vacía.
+-- El servidor publica XpBoostMult, XpBoostEnd y XpBoostQueue como atributos del jugador.
+local boostCard = H.rect(design, "Pocion", 22, 956, 330, 100, 18, 2)
+H.grad(boostCard, M.COLOR.lime[1], M.COLOR.lime[3])
+H.ink(boostCard, 4)
+local boostPop = H.new("UIScale", { Name = "Pop" }, boostCard)
+boostCard.Visible = false
+
+-- frasco dibujado con formas: cuerpo redondo, cuello y tapón
+local flaskBody = H.rect(boostCard, "FrascoCuerpo", 18, 44, 48, 48, 24, 5, M.COLOR.purple[1])
+H.grad(flaskBody, M.COLOR.purple[1], M.COLOR.purple[3])
+H.ink(flaskBody, 3)
+local flaskNeck = H.rect(boostCard, "FrascoCuello", 32, 22, 20, 28, 4, 5, WHITE)
+H.ink(flaskNeck, 3)
+local flaskCap = H.rect(boostCard, "FrascoTapon", 29, 12, 26, 14, 5, 6, Color3.fromRGB(150, 90, 40))
+H.ink(flaskCap, 3)
+H.rect(flaskBody, "Brillo", 10, 8, 10, 10, 5, 6, WHITE).BackgroundTransparency = 0.35
+
+local boostTitle = H.text(boostCard, "Titulo", "XP x2", 84, 24, 30, 5, nil, "left")
+local boostTime = H.text(boostCard, "Tiempo", "0:00", 312, 24, 30, 5, nil, "right")
+local boostTrack = H.rect(boostCard, "Pista", 84, 48, 228, 18, 9, 4)
+H.ink(boostTrack, 3)
+local boostFill = H.rect(boostTrack, "Relleno", 0, 0, 228, 18, 9, 5, M.COLOR.gold[1])
+H.grad(boostFill, M.COLOR.gold[1], M.COLOR.gold[3])
+H.text(boostCard, "Sub", "Poción de XP", 84, 82, 20, 5, nil, "left")
+local boostQueue = H.text(boostCard, "Cola", "", 312, 82, 20, 5, nil, "right")
+
 task.spawn(function()
+	local peak = 0 -- el mayor tiempo restante visto: la barra se vacía respecto a él
+	local shown = false
 	while true do
 		local mult = attributeNumber("XpBoostMult")
 		local left = attributeNumber("XpBoostEnd") - workspace:GetServerTimeNow()
-		if mult > 1 and left > 0 then
-			boostLabel.Text = `XP x{mult} · {string.format("%d:%02d", math.floor(left / 60), math.floor(left % 60))}`
+		local active = mult > 1 and left > 0
+		if active then
+			peak = math.max(peak, left)
+			boostTitle.Text = `XP x{mult}`
+			boostTime.Text = string.format("%d:%02d", math.floor(left / 60), math.floor(left % 60))
+			boostFill.Size = UDim2.fromOffset(math.floor(math.clamp(left / peak, 0, 1) * 228), 18)
+			local queued = attributeNumber("XpBoostQueue")
+			boostQueue.Text = if queued > 0 then `+{queued} en cola` else ""
+			if not shown then
+				shown = true
+				boostCard.Visible = true
+				boostPop.Scale = 0.6
+				TweenService:Create(boostPop, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			end
 		else
-			boostLabel.Text = ""
+			peak = 0
+			if shown then
+				shown = false
+				boostCard.Visible = false
+			end
 		end
-		task.wait(0.5)
+		task.wait(0.25)
 	end
 end)
 

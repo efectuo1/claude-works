@@ -217,20 +217,35 @@ local wallet = WalletService.new({
 
 -- Pociones: el servidor publica el multiplicador y su fin como atributos para el HUD.
 local potions: PotionService.PotionService
+local function publishPotion(userId: number)
+	local player = Players:GetPlayerByUserId(userId)
+	if player ~= nil then
+		player:SetAttribute("XpBoostMult", potions.multiplierFor(userId))
+		player:SetAttribute("XpBoostEnd", potions.endsAtFor(userId) or 0)
+		player:SetAttribute("XpBoostQueue", potions.queuedFor(userId))
+	end
+end
 potions = PotionService.new({
 	items = Items,
 	inventory = inventory,
 	wallet = wallet,
 	now = serverNow,
 	onChanged = function(userId: number)
-		local player = Players:GetPlayerByUserId(userId)
-		if player ~= nil then
-			player:SetAttribute("XpBoostMult", potions.multiplierFor(userId))
-			player:SetAttribute("XpBoostEnd", potions.endsAtFor(userId) or 0)
-		end
+		publishPotion(userId)
 	end,
 })
 potionMultiplier = potions.multiplierFor
+
+-- Una poción puede terminar y dar paso a la siguiente de la cola sin que nadie pulse nada:
+-- cada segundo se vuelve a publicar el estado. SetAttribute no hace nada si el valor no cambia.
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, player in Players:GetPlayers() do
+			publishPotion(player.UserId)
+		end
+	end
+end)
 
 local potionLimiter = RateLimiter.new(4, 1, serverNow)
 usePotionRemote.OnServerEvent:Connect(function(player: Player, payload: any)

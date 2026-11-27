@@ -31,6 +31,7 @@ export type PotionService = {
 	buy: (userId: number, itemId: string) -> Result.Result<boolean>,
 	multiplierFor: (userId: number) -> number,
 	endsAtFor: (userId: number) -> number?,
+	queuedFor: (userId: number) -> number,
 	releasePlayer: (userId: number) -> (),
 }
 
@@ -107,6 +108,15 @@ function PotionService.new(deps: Dependencies): PotionService
 			return nil
 		end
 		return PotionTimer.endsAt(state, deps.now())
+	end
+
+	function service.queuedFor(userId: number): number
+		local state = states[userId]
+		if state == nil then
+			return 0
+		end
+		PotionTimer.advance(state, deps.now())
+		return PotionTimer.queued(state)
 	end
 
 	function service.releasePlayer(userId: number)
