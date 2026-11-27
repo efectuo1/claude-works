@@ -242,6 +242,7 @@ local FLOWER_COLORS = {
 	Color3.fromRGB(255, 120, 40),
 }
 
+-- Campos de flores: grupos de 5 a 9 flores de neón, repartidos por la meseta.
 local function buildFlowers()
 	if workspace:FindFirstChild("Flores") ~= nil then
 		return
@@ -249,22 +250,58 @@ local function buildFlowers()
 	local folder = Instance.new("Folder")
 	folder.Name = "Flores"
 	local rng = Random.new(21)
-	for i = 1, 600 do
-		local p = Vector2.new(rng:NextNumber(-MAP_HALF, MAP_HALF), rng:NextNumber(-MAP_HALF, MAP_HALF))
-		if MapLayout.isClear(p, 1) then
-			local flower = Instance.new("Part")
-			flower.Name = `Flor_{i}`
-			flower.Shape = Enum.PartType.Ball
-			flower.Size = Vector3.new(0.9, 0.9, 0.9)
-			flower.Material = Enum.Material.Neon
-			flower.Color = FLOWER_COLORS[rng:NextInteger(1, #FLOWER_COLORS)]
-			flower.Anchored = true
-			flower.CanCollide = false
-			flower.CanQuery = false
-			flower.CanTouch = false
-			flower.Position = Vector3.new(p.X, height(p.X, p.Y) + 0.5, p.Y)
-			flower.Parent = folder
+	local reach = MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH - 20
+	local count = 0
+	for _ = 1, 160 do
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local radius = rng:NextNumber(30, reach)
+		local center = Vector2.new(math.cos(angle), math.sin(angle)) * radius
+		if MapLayout.isClear(center, 8) then
+			for _ = 1, rng:NextInteger(5, 9) do
+				local a2 = rng:NextNumber(0, math.pi * 2)
+				local r2 = rng:NextNumber(0, 4.5)
+				local p = center + Vector2.new(math.cos(a2), math.sin(a2)) * r2
+				count += 1
+				local flower = Instance.new("Part")
+				flower.Name = `Flor_{count}`
+				flower.Shape = Enum.PartType.Ball
+				flower.Size = Vector3.new(1, 1, 1) * rng:NextNumber(0.8, 1.3)
+				flower.Material = Enum.Material.Neon
+				flower.Color = FLOWER_COLORS[rng:NextInteger(1, #FLOWER_COLORS)]
+				flower.Anchored = true
+				flower.CanCollide = false
+				flower.CanQuery = false
+				flower.CanTouch = false
+				flower.Position = Vector3.new(p.X, height(p.X, p.Y) + 0.6, p.Y)
+				flower.Parent = folder
+			end
 		end
+	end
+	folder.Parent = workspace
+end
+
+-- Rocas grandes sobre el borde de la meseta, justo antes del acantilado, como en la referencia.
+local function buildBoulders()
+	if workspace:FindFirstChild("Rocas") ~= nil then
+		return
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Rocas"
+	local rng = Random.new(55)
+	local inner = MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH
+	for i = 1, 90 do
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local radius = rng:NextNumber(inner - 14, inner - 2)
+		local p = Vector2.new(math.cos(angle), math.sin(angle)) * radius
+		local size = rng:NextNumber(4, 9)
+		local boulder = Instance.new("Part")
+		boulder.Name = `Roca_{i}`
+		boulder.Anchored = true
+		boulder.Material = Enum.Material.Slate
+		boulder.Color = Color3.fromRGB(140, 128, 165)
+		boulder.Size = Vector3.new(size, size * rng:NextNumber(0.6, 0.9), size * rng:NextNumber(0.8, 1.1))
+		boulder.CFrame = CFrame.new(p.X, height(p.X, p.Y) + boulder.Size.Y / 2 - 0.5, p.Y) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+		boulder.Parent = folder
 	end
 	folder.Parent = workspace
 end
@@ -423,6 +460,7 @@ function WorldBuilder.build(mobDefs: { [string]: Types.MobDef }): Result.Result<
 	allOk = step("punto de inicio", buildSpawnLocation) and allOk
 	allOk = step("decoración", buildDecor) and allOk
 	allOk = step("flores", buildFlowers) and allOk
+	allOk = step("rocas", buildBoulders) and allOk
 	allOk = step("zona", buildZone) and allOk
 	allOk = step("hub", function()
 		HubBuilder.build(height)
