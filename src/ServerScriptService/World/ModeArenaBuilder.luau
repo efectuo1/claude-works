@@ -60,6 +60,36 @@ end
 
 local BASE_SAND = Color3.fromRGB(230, 205, 150)
 local BASE_STONE = Color3.fromRGB(150, 150, 165)
+local RIM = Color3.fromRGB(225, 200, 150)
+local ORANGE = Color3.fromRGB(230, 140, 60)
+local LANTERN_GLOW = Color3.fromRGB(255, 200, 110)
+
+-- Borde de piedra alrededor de un disco: bloques tangentes al círculo.
+local function rim(parent: Instance, name: string, center: Vector2, radius: number, y: number)
+	local count = math.max(12, math.floor(radius * 1.6))
+	local segment = 2 * math.pi * radius / count
+	for index = 0, count - 1 do
+		local angle = index * 2 * math.pi / count
+		local x = center.X + math.cos(angle) * radius
+		local z = center.Y + math.sin(angle) * radius
+		part(parent, name, Vector3.new(segment * 0.9, 1.2, 1.4), CFrame.new(x, y + 0.6, z) * CFrame.Angles(0, -angle - math.pi / 2, 0), RIM, Enum.Material.Cobblestone)
+	end
+end
+
+-- Farol: poste de piedra con bola luminosa. Solo los del centro llevan luz para no saturar la escena.
+local function lantern(parent: Instance, name: string, base: Vector3, withLight: boolean)
+	part(parent, `{name}_Poste`, Vector3.new(0.8, 4, 0.8), CFrame.new(base + Vector3.new(0, 2, 0)), RIM, Enum.Material.Slate)
+	local glow = part(parent, `{name}_Luz`, Vector3.new(1.6, 1.6, 1.6), CFrame.new(base + Vector3.new(0, 4.4, 0)), LANTERN_GLOW, Enum.Material.Neon)
+	glow.Shape = Enum.PartType.Ball
+	glow.CanCollide = false
+	if withLight then
+		local light = Instance.new("PointLight")
+		light.Color = LANTERN_GLOW
+		light.Range = 12
+		light.Brightness = 0.8
+		light.Parent = glow
+	end
+end
 
 local function buildWave(parent: Instance)
 	local y = ModeLayout.deckY()
@@ -74,8 +104,19 @@ local function buildWave(parent: Instance)
 	water.CanCollide = false
 
 	for _, deck in ModeLayout.waveDecks() do
-		disc(parent, `Plataforma_{deck.name}`, deck.center, deck.radius, y, WOOD, Enum.Material.Wood)
+		local isCenter = deck.name == "Central"
+		disc(parent, `Plataforma_{deck.name}`, deck.center, deck.radius, y, if isCenter then WOOD else ORANGE, Enum.Material.Wood)
+		rim(parent, `Borde_{deck.name}`, deck.center, deck.radius, y)
+		-- Cuatro faroles por plataforma, en diagonal para no tapar los puentes.
+		for index = 0, 3 do
+			local angle = math.pi / 4 + index * math.pi / 2
+			local spot = deck.center + Vector2.new(math.cos(angle), math.sin(angle)) * (deck.radius - 1.5)
+			lantern(parent, `Farol_{deck.name}_{index}`, Vector3.new(spot.X, y + 1.2, spot.Y), isCenter)
+		end
 	end
+	-- Emblema del centro: disco claro encima de la madera, como en la referencia.
+	local emblem = disc(parent, "Emblema", origin, 6, y + 0.45, MARBLE, Enum.Material.Marble)
+	emblem.CanCollide = false
 	for _, link in ModeLayout.waveBridges() do
 		bridge(parent, link.from, link.to, link.width, y)
 	end
