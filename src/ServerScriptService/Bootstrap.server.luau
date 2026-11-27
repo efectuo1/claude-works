@@ -47,6 +47,7 @@ local GamePassService = require(ServerScriptService.Monetization.GamePassService
 local MarketplaceService = game:GetService("MarketplaceService")
 local WaveService = require(ServerScriptService.Modes.WaveService)
 local JefesService = require(ServerScriptService.Modes.JefesService)
+local ModeLayout = require(ServerScriptService.World.ModeLayout)
 local RouletteService = require(ServerScriptService.Roulette.RouletteService)
 local Result = require(Shared.Util.Result)
 
@@ -447,9 +448,8 @@ if world ~= nil then
 		controller = world.controller,
 		templates = world.templates,
 		mobsFolder = world.mobsFolder,
-		bossPosition = Vector3.new(0, 6, 220),
-		portalPosition = Vector3.new(0, 6, 180),
-		exitPosition = Vector3.new(0, 6, 166),
+		bossPosition = ModeLayout.bossArenaPosition(),
+		exitPosition = ModeLayout.hubSpawn(),
 		getLevel = function(userId: number): number?
 			local data = profiles.get(userId)
 			return if data then data.level else nil

@@ -20,7 +20,9 @@ local DomainEvents = require(ServerScriptService.Events.DomainEvents)
 local Mob = require(ServerScriptService.Mobs.Mob)
 local MobController = require(ServerScriptService.Mobs.MobController)
 local MobRegistry = require(ServerScriptService.Mobs.MobRegistry)
-local MapLayout = require(ServerScriptService.World.MapLayout)
+local ModeLayout = require(ServerScriptService.World.ModeLayout)
+local ModeArenaBuilder = require(ServerScriptService.World.ModeArenaBuilder)
+local PadBuilder = require(ServerScriptService.World.PadBuilder)
 local InstanceRouter = require(ServerScriptService.Instances.InstanceRouter)
 
 export type Dependencies = {
@@ -46,9 +48,6 @@ type Run = {
 
 local MAX_PLAYERS = 4
 local NEXT_WAVE_DELAY = 3 -- segundos entre oleadas
-local RING_RADIUS = 18 -- los mobs aparecen en un anillo dentro de la arena
-local SPAWN_LIFT = 3
-local HUB_POSITION = Vector3.new(0, 6, 0)
 
 -- Dificultad elegida al entrar. Provisional: se ajusta con las pruebas.
 local DIFFICULTY = { normal = 1, dificil = 1.5, pesadilla = 2 }
@@ -64,9 +63,7 @@ local runCounter = 0
 local WaveService = {}
 
 local function arenaCenter(): Vector3
-	local region = MapLayout.region("modes")
-	local center = if region then region.center else Vector2.zero
-	return Vector3.new(center.X, MapLayout.height(center.X, center.Y) + 4, center.Y)
+	return ModeLayout.waveCenter()
 end
 
 -- Oleada con jefe (mini o final): el marcador lo dice.
@@ -195,7 +192,7 @@ function WaveService.new(deps: Dependencies)
 			return
 		end
 		local mobIds = info.value.mobs
-		local center = arenaCenter()
+		local spawns = ModeLayout.waveSpawnPoints(#mobIds)
 		for index, mobDefId in mobIds do
 			local baseDefinition = MobDefs[mobDefId]
 			local template = deps.templates:FindFirstChild(baseDefinition and (baseDefinition.templateId or mobDefId) or mobDefId) :: Model?
@@ -205,10 +202,8 @@ function WaveService.new(deps: Dependencies)
 			end
 			local definition = table.clone(baseDefinition)
 			definition.maxHealth = math.floor(baseDefinition.maxHealth * healthMult(current.healthMult, wave))
-			local angle = (index - 1) / #mobIds * math.pi * 2
-			local x = center.X + math.cos(angle) * RING_RADIUS
-			local z = center.Z + math.sin(angle) * RING_RADIUS
-			local home = Vector3.new(x, MapLayout.height(x, z) + SPAWN_LIFT, z)
+			local spawn = spawns[index]
+			local home = Vector3.new(spawn.X, ModeLayout.deckY() + 3, spawn.Y)
 			local instanceId = `oleada_{wave}_{index}`
 
 			local model = template:Clone()
@@ -268,7 +263,7 @@ function WaveService.new(deps: Dependencies)
 				deps.grantBoss(userId)
 			end
 			deps.notify(userId, { kind = "end", result = result, wave = current.session.wave })
-			teleport(userId, HUB_POSITION)
+			teleport(userId, ModeLayout.hubSpawn())
 		end
 	end
 
@@ -282,7 +277,7 @@ function WaveService.new(deps: Dependencies)
 			deps.router.leave(userId)
 		end
 		deps.notify(userId, { kind = "end", result = "salida", wave = current.session.wave })
-		teleport(userId, HUB_POSITION)
+		teleport(userId, ModeLayout.hubSpawn())
 		if countPlayers(current) == 0 then
 			finish(current, "derrota")
 		end
@@ -345,28 +340,14 @@ function WaveService.new(deps: Dependencies)
 
 	service.leave = leave
 
-	-- Un portal por dificultad, en fila delante de la arena. Cada uno es un ProximityPrompt del servidor.
+	-- Un pad visible por dificultad, en el lobby de la arena. Pisarlo no hace nada: se usa el prompt.
 	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
 	local ORDER = { "normal", "dificil", "pesadilla" }
+	local folder = ModeArenaBuilder.folder()
 	for index, key in ORDER do
-		local portal = Instance.new("Part")
-		portal.Name = "Portal_" .. key
-		portal.Anchored = true
-		portal.CanCollide = false
-		portal.Transparency = 1
-		portal.Size = Vector3.new(2, 2, 2)
-		-- Dentro del suelo de madera y lejos de los pilares (radio 26): los portales en z=26 quedaban sobre un pilar.
-		portal.Position = arenaCenter() + Vector3.new(-6 + (index - 1) * 6, -2, 12)
-		portal.Parent = workspace
-
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.ActionText = "Entrar: " .. LABELS[key]
-		prompt.ObjectText = "Oleadas"
-		prompt.HoldDuration = 0.4
-		prompt.MaxActivationDistance = 16
-		prompt.RequiresLineOfSight = false -- un pilar o el suelo no deben esconder el portal
-		prompt.Parent = portal
-		prompt.Triggered:Connect(function(player: Player)
+		local spot = ModeLayout.waveEntryPad(index)
+		local pad = PadBuilder.build(folder, `Pad_Oleadas_{key}`, Vector3.new(spot.X, ModeLayout.deckY() + 0.3, spot.Y), Color3.fromRGB(90, 230, 110), LABELS[key])
+		PadBuilder.prompt(pad, `Entrar: {LABELS[key]}`, "Oleadas", function(player: Player)
 			local result = service.enter(player.UserId, key)
 			if not result.ok then
 				deps.notify(player.UserId, { kind = "wave_error", error = result.error })
@@ -374,25 +355,29 @@ function WaveService.new(deps: Dependencies)
 		end)
 	end
 
-	-- Salida: un portal delante de la arena, junto a los de entrada. Solo actúa a quien está dentro.
-	local exitPart = Instance.new("Part")
-	exitPart.Name = "Salida_Oleadas"
-	exitPart.Anchored = true
-	exitPart.CanCollide = false
-	exitPart.Transparency = 1
-	exitPart.Size = Vector3.new(2, 2, 2)
-	exitPart.Position = arenaCenter() + Vector3.new(0, -2, -12) -- lado opuesto a los portales, dentro del suelo
-	exitPart.Parent = workspace
-
-	local exitPrompt = Instance.new("ProximityPrompt")
-	exitPrompt.ActionText = "Salir de la arena"
-	exitPrompt.ObjectText = "Oleadas"
-	exitPrompt.HoldDuration = 0.4
-	exitPrompt.MaxActivationDistance = 16
-	exitPrompt.RequiresLineOfSight = false
-	exitPrompt.Parent = exitPart
-	exitPrompt.Triggered:Connect(function(player: Player)
+	-- Salida: un pad al final del lobby. Solo actúa a quien está dentro de la arena.
+	local exitSpot = ModeLayout.waveExitPad()
+	local exitPad = PadBuilder.build(folder, "Salida_Oleadas", Vector3.new(exitSpot.X, ModeLayout.deckY() + 0.3, exitSpot.Y), Color3.fromRGB(255, 90, 90), "Salir")
+	PadBuilder.prompt(exitPad, "Salir de la arena", "Oleadas", function(player: Player)
 		leave(player.UserId)
+	end)
+
+	-- Quien se cae de un puente o de una plataforma vuelve a la plataforma central.
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			local current = run
+			if current ~= nil then
+				for userId in current.players do
+					local player = Players:GetPlayerByUserId(userId)
+					local character = if player then player.Character else nil
+					local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+					if root ~= nil and root.Position.Y < ModeLayout.deckY() - ModeLayout.FALL_DEPTH then
+						teleport(userId, ModeLayout.waveCenter())
+					end
+				end
+			end
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)

@@ -10,6 +10,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ModeLayout = require(ServerScriptService.World.ModeLayout)
+local ModeArenaBuilder = require(ServerScriptService.World.ModeArenaBuilder)
+local PadBuilder = require(ServerScriptService.World.PadBuilder)
 
 local MobDefs = require(ReplicatedStorage.Shared.Definitions.Mobs)
 local Result = require(ReplicatedStorage.Shared.Util.Result)
@@ -27,7 +30,6 @@ export type Dependencies = {
 	templates: Instance,
 	mobsFolder: Instance,
 	bossPosition: Vector3,
-	portalPosition: Vector3,
 	exitPosition: Vector3, -- a dónde vuelve quien sale de la sala de jefes
 	getLevel: (userId: number) -> number?,
 	grantBoss: (userId: number) -> (),
@@ -166,7 +168,7 @@ function JefesService.new(deps: Dependencies)
 				deps.grantBoss(userId)
 			end
 			deps.notify(userId, { kind = "end", result = result, boss = current.boss.id })
-			teleport(userId, deps.bossPosition + Vector3.new(0, 0, -20))
+			teleport(userId, ModeLayout.bossLobby())
 		end
 	end
 
@@ -212,7 +214,7 @@ function JefesService.new(deps: Dependencies)
 			if deps.router then
 				deps.router.enter(userId, current.id)
 			end
-			teleport(userId, deps.bossPosition + Vector3.new(0, 0, -20))
+			teleport(userId, ModeLayout.bossLobby())
 			return Result.ok(true)
 		end
 
@@ -230,7 +232,7 @@ function JefesService.new(deps: Dependencies)
 			deps.router.create(opened.id, registry)
 			deps.router.enter(userId, opened.id)
 		end
-		teleport(userId, deps.bossPosition + Vector3.new(0, 0, -20))
+		teleport(userId, ModeLayout.bossLobby())
 		spawnBoss(opened)
 		return Result.ok(true)
 	end
@@ -252,27 +254,15 @@ function JefesService.new(deps: Dependencies)
 		end
 	end
 
-	-- Un portal por jefe y dificultad, en filas delante de la sala de jefes.
+	-- Un pad visible por jefe (fila) y dificultad (columna), en el lobby de la sala de jefes.
 	local LABELS = { normal = "Normal", dificil = "Difícil", pesadilla = "Pesadilla" }
 	local ORDER = { "normal", "dificil", "pesadilla" }
+	local folder = ModeArenaBuilder.folder()
 	for row, boss in BOSSES do
 		for col, key in ORDER do
-			local portal = Instance.new("Part")
-			portal.Name = `PortalJefe_{boss.id}_{key}`
-			portal.Anchored = true
-			portal.CanCollide = false
-			portal.Transparency = 1
-			portal.Size = Vector3.new(2, 2, 2)
-			portal.Position = deps.portalPosition + Vector3.new((col - 1) * 8 - 8, -2, (row - 1) * 10)
-			portal.Parent = workspace
-
-			local prompt = Instance.new("ProximityPrompt")
-			prompt.ActionText = `Retar: {boss.id} ({LABELS[key]})`
-			prompt.ObjectText = "Jefes"
-			prompt.HoldDuration = 0.4
-			prompt.MaxActivationDistance = 14
-			prompt.Parent = portal
-			prompt.Triggered:Connect(function(player: Player)
+			local spot = ModeLayout.bossPad(row, col)
+			local pad = PadBuilder.build(folder, `PadJefe_{boss.id}_{key}`, Vector3.new(spot.X, ModeLayout.deckY() + 0.3, spot.Y), Color3.fromRGB(255, 90, 90), `{boss.id} · {LABELS[key]}`)
+			PadBuilder.prompt(pad, `Retar: {boss.id} ({LABELS[key]})`, "Jefes", function(player: Player)
 				local result = service.enter(player.UserId, boss.id, key)
 				if not result.ok then
 					deps.notify(player.UserId, { kind = "wave_error", error = result.error })
@@ -281,23 +271,10 @@ function JefesService.new(deps: Dependencies)
 		end
 	end
 
-	-- Salida: un portal al lado de la entrada. Solo actúa a quien está dentro de una sala.
-	local exitPart = Instance.new("Part")
-	exitPart.Name = "SalidaJefes"
-	exitPart.Anchored = true
-	exitPart.CanCollide = false
-	exitPart.Transparency = 1
-	exitPart.Size = Vector3.new(2, 2, 2)
-	exitPart.Position = deps.portalPosition + Vector3.new(0, -2, -6)
-	exitPart.Parent = workspace
-
-	local exitPrompt = Instance.new("ProximityPrompt")
-	exitPrompt.ActionText = "Salir de la sala"
-	exitPrompt.ObjectText = "Jefes"
-	exitPrompt.HoldDuration = 0.4
-	exitPrompt.MaxActivationDistance = 14
-	exitPrompt.Parent = exitPart
-	exitPrompt.Triggered:Connect(function(player: Player)
+	-- Salida: un pad al sur del lobby. Solo actúa a quien está dentro de una sala.
+	local exitSpot = ModeLayout.bossExitPad()
+	local exitPad = PadBuilder.build(folder, "SalidaJefes", Vector3.new(exitSpot.X, ModeLayout.deckY() + 0.3, exitSpot.Y), Color3.fromRGB(150, 150, 165), "Salir")
+	PadBuilder.prompt(exitPad, "Salir de la sala", "Jefes", function(player: Player)
 		service.leave(player.UserId)
 	end)
 

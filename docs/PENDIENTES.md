@@ -16,7 +16,8 @@ Estado de la entrega acumulada. Todo lo marcado como "revisar en Studio" no se h
 - Oleadas: tres portales (Normal, Difícil, Pesadilla) delante de la arena y portal de salida al lado.
 - Modo Jefes (JefesService): elegir jefe y dificultad, requisito de nivel, hasta 4 jugadores, recompensa al morir el jefe.
 - Modo Jefes: seis portales (jefe x dificultad) y portal de salida que devuelve al jugador a la entrada.
-- Casas del hub: Oleadas y Jefes llevan a su portal (ModeHouses); "En espera" solo muestra el cartel.
+- Cabañas del hub (HubBuilder): Oleadas y Jefes tienen pads brillantes que llevan al lobby de su modalidad; las otras dos dicen "Próximamente".
+- Modalidades (ModeLayout + ModeArenaBuilder + PadBuilder): arena con plataforma central, aparición en plataformas, puentes con barandilla y agua; sala de jefes con lobby, puente y arena. Caer vuelve a la plataforma central. Probar en Studio.
 - Ventana de Modalidades: lista de jefes con su nivel mínimo y si está bloqueado (remoto BossList).
 - Fin de jefe: el HUD muestra su propio mensaje, no el de oleadas. Los errores de entrada a jefes tienen su texto.
 - Ruleta: el oro y las gemas se entregan de verdad. Frutas y jutsus no tienen catálogo: avisan y no gastan el giro.

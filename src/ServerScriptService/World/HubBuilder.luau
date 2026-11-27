@@ -6,7 +6,22 @@
 	Se rehace en cada arranque. Los carteles de tienda y clasificación siguen siendo provisionales.
 ]]
 
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local ModeLayout = require(ServerScriptService.World.ModeLayout)
+local PadBuilder = require(ServerScriptService.World.PadBuilder)
+
 local HubBuilder = {}
+
+-- Cabañas de modalidad: al norte de la plaza, en fila. Cada una tiene un pad delante que lleva a su lobby.
+local MODE_CABINS = {
+	{ id = "Oleadas", x = -18, color = Color3.fromRGB(90, 230, 110), destination = "wave" },
+	{ id = "Jefes", x = -6, color = Color3.fromRGB(255, 90, 90), destination = "boss" },
+	{ id = "Proximamente", x = 6, color = Color3.fromRGB(150, 150, 165), destination = nil },
+	{ id = "Proximamente", x = 18, color = Color3.fromRGB(150, 150, 165), destination = nil },
+}
+local CABIN_Z = -30
+local PAD_Z = -23.5
 
 local SAND = Color3.fromRGB(250, 220, 150)
 local STONE_COLORS = {
@@ -175,12 +190,21 @@ function HubBuilder.build(heightAt: HeightAt)
 		flatDisc(hub, "Parterre", 2, 0.3, position, Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
 
-	-- Seis cabañas en círculo, con la puerta hacia el centro.
-	for _, angle in { 30, 90, 150, 210, 270, 330 } do
-		local rad = math.rad(angle)
-		local direction = Vector3.new(math.cos(rad), 0, math.sin(rad))
-		local position = center + direction * 22
-		cabin(hub, Vector3.new(position.X, heightAt(position.X, position.Z), position.Z), direction)
+	-- Cuatro cabañas de modalidad al norte, con la puerta hacia la plaza y un pad brillante delante.
+	for _, mode in MODE_CABINS do
+		local outward = Vector3.new(mode.x, 0, CABIN_Z).Unit
+		cabin(hub, Vector3.new(mode.x, heightAt(mode.x, CABIN_Z), CABIN_Z), outward)
+		local padY = heightAt(mode.x, PAD_Z) + 0.6
+		local pad = PadBuilder.build(hub, `Entrada_{mode.id}`, Vector3.new(mode.x, padY, PAD_Z), mode.color, mode.destination and mode.id or "Próximamente")
+		if mode.destination ~= nil then
+			local destination = if mode.destination == "wave" then ModeLayout.waveLobby() else ModeLayout.bossLobby()
+			PadBuilder.prompt(pad, `Ir a {mode.id}`, "Modalidad", function(player: Player)
+				local character = player.Character
+				if character ~= nil then
+					character:PivotTo(CFrame.new(destination))
+				end
+			end)
+		end
 	end
 
 	-- Árboles de copa redonda en el borde de la plaza.
@@ -189,7 +213,9 @@ function HubBuilder.build(heightAt: HeightAt)
 		local radius = rng:NextNumber(30, 34)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		tree(hub, Vector3.new(x, heightAt(x, z), z), rng)
+		if z > -20 then -- el norte es de las cabañas de modalidad
+			tree(hub, Vector3.new(x, heightAt(x, z), z), rng)
+		end
 	end
 
 	-- Setos en un anillo exterior, que cierran la plaza como un islote.
@@ -202,7 +228,7 @@ function HubBuilder.build(heightAt: HeightAt)
 	end
 
 	-- Grupo de gemas de colores, al estilo de los montones de la referencia.
-	local gemBase = Vector3.new(-14, heightAt(-14, -38), -38)
+	local gemBase = Vector3.new(-28, heightAt(-28, 4), 4)
 	for index, color in GEM_COLORS do
 		local offset = Vector3.new((index - 3) * 1.6, 1 + (index % 2) * 0.8, rng:NextNumber(-0.5, 0.5))
 		part(hub, "Gema", Vector3.new(2, 2, 2), CFrame.new(gemBase + offset), color, Enum.Material.Neon, Enum.PartType.Ball)
@@ -218,7 +244,7 @@ function HubBuilder.build(heightAt: HeightAt)
 	end
 
 	-- Tablero de clasificación detrás de la plaza. La tienda está en el este (LandmarksBuilder).
-	local boardBase = Vector3.new(0, heightAt(0, -34), -34)
+	local boardBase = Vector3.new(30, heightAt(30, -14), -14)
 	part(hub, "TableroPoste", Vector3.new(0.8, 6, 0.8), CFrame.new(boardBase + Vector3.new(0, 3, 0)), POST_COLOR, Enum.Material.Metal)
 	local board = part(hub, "Clasificacion", Vector3.new(12, 5, 0.6), CFrame.new(boardBase + Vector3.new(0, 8.5, 0)), BOARD_COLOR)
 	sign(board, "CLASIFICACIÓN")

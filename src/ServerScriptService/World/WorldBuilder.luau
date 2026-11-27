@@ -14,6 +14,7 @@ local Result = require(ReplicatedStorage.Shared.Util.Result)
 local HubBuilder = require(script.Parent.HubBuilder)
 local MapLayout = require(script.Parent.MapLayout)
 local LandmarksBuilder = require(script.Parent.LandmarksBuilder)
+local ModeArenaBuilder = require(script.Parent.ModeArenaBuilder)
 
 local WorldBuilder = {}
 
@@ -139,9 +140,10 @@ local function buildSpawnLocation()
 	end
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "Inicio"
-	-- Pad pequeño en el centro del hub: cabe entre las piedras del anillo.
+	-- Pad pequeño en la plaza, delante de la fuente: el punto de aparición de los jugadores.
 	spawn.Size = Vector3.new(6, 1, 6)
-	spawn.Position = Vector3.new(0, height(0, 0) + 0.5, 0)
+	local start = MapLayout.HUB_SPAWN
+	spawn.Position = Vector3.new(start.X, height(start.X, start.Y) + 0.5, start.Y)
 	spawn.Anchored = true
 	spawn.Neutral = true
 	spawn.Color = Color3.fromRGB(255, 200, 80)
@@ -416,6 +418,9 @@ function WorldBuilder.build(mobDefs: { [string]: Types.MobDef }): Result.Result<
 	allOk = step("zona", buildZone) and allOk
 	allOk = step("hub", function()
 		HubBuilder.build(height)
+	end) and allOk
+	allOk = step("modalidades", function()
+		ModeArenaBuilder.build()
 	end) and allOk
 	allOk = step("zonas de servicio", function()
 		LandmarksBuilder.build(height)

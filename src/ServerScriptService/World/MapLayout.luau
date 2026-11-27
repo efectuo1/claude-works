@@ -4,13 +4,14 @@
 	y franjas libres de decoración. No toca Instances, así que se prueba sin Studio.
 
 	Disposición (XZ, centro = 0,0):
-	  Oeste  (-190, 0): arena de modalidades.
-	  Centro (0, 0):    plaza de inicio con fuente.
+	  Oeste  (-190, 0): arena de oleadas (plataformas y puentes sobre agua).
+	  Centro (0, 0):    plaza de inicio con fuente y las cuatro cabañas de modalidades al norte.
 	  Este   (190, 0):  tienda.
+	  Sur    (0, 190):  sala de jefes (lobby, puente y arena).
 	  Campos de mobs:   anillo entre el centro y el borde del mapa.
 ]]
 
-export type Kind = "hub" | "shop" | "modes"
+export type Kind = "hub" | "shop" | "modes" | "bosses"
 export type Region = { id: string, kind: Kind, center: Vector2, radius: number }
 export type Corridor = { from: Vector2, to: Vector2, halfWidth: number }
 export type Surface = "Rock" | "Sand" | "Grass" | "Stone"
@@ -25,13 +26,20 @@ MapLayout.EDGE_WIDTH = 24 -- franja de roca en el borde del mapa
 local REGIONS: { Region } = {
 	{ id = "hub", kind = "hub", center = Vector2.new(0, 0), radius = 40 },
 	{ id = "shop", kind = "shop", center = Vector2.new(190, 0), radius = 30 },
-	{ id = "modes", kind = "modes", center = Vector2.new(-190, 0), radius = 36 },
+	-- La arena de oleadas ocupa 64 studs desde su centro (satélites incluidos): la zona plana la rodea con margen.
+	{ id = "modes", kind = "modes", center = Vector2.new(-190, 0), radius = 70 },
+	-- La sala de jefes cubre desde el lobby (norte) hasta el fondo de la arena (sur).
+	{ id = "bosses", kind = "bosses", center = Vector2.new(0, 190), radius = 62 },
 }
 
 local CORRIDORS: { Corridor } = {
 	{ from = Vector2.new(0, 0), to = Vector2.new(190, 0), halfWidth = 9 },
 	{ from = Vector2.new(0, 0), to = Vector2.new(-190, 0), halfWidth = 9 },
+	{ from = Vector2.new(0, 0), to = Vector2.new(0, 190), halfWidth = 9 },
 }
+
+-- Dónde aparecen los jugadores al empezar y al volver al hub: al sur de la fuente, mirando a las cabañas.
+MapLayout.HUB_SPAWN = Vector2.new(0, 18)
 
 -- Nombres = spawnPointName de Zones.luau. Todos quedan en los campos, fuera de zonas y caminos.
 local SPAWN_POINTS: { [string]: Vector2 } = {
@@ -125,6 +133,10 @@ function MapLayout.surfaceAt(x: number, z: number, h: number): Surface
 		if region.kind == "hub" then
 			if math.abs(d - 36) < 3 then
 				return "Sand"
+			end
+		elseif region.kind == "bosses" then
+			if d <= region.radius then
+				return "Stone"
 			end
 		elseif d <= region.radius then
 			return "Sand"
