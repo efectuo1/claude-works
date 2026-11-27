@@ -34,6 +34,22 @@ return {
 				end
 			end,
 
+			["los spawns de mobs caen dentro de la isla, lejos del acantilado"] = function()
+				for name, point in MapLayout.spawnPoints() do
+					expect(point.Magnitude < MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH, `{name} queda en el acantilado o en el mar`)
+				end
+			end,
+
+			["fuera de la isla el terreno está bajo el nivel del agua"] = function()
+				local far = Vector2.new(MapLayout.ISLAND_RADIUS + 40, 0)
+				expect(MapLayout.height(far.X, far.Y) < MapLayout.SEA_LEVEL, "el mar debe quedar bajo el nivel del agua")
+			end,
+
+			["dentro de la isla la meseta queda sobre el agua"] = function()
+				local inside = Vector2.new(MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH - 20, 0)
+				expect(MapLayout.height(inside.X, inside.Y) > MapLayout.SEA_LEVEL, "la tierra debe quedar sobre el agua")
+			end,
+
 			["la plaza central está reservada"] = function()
 				expect(not MapLayout.isClear(Vector2.zero, 0), "el centro debe estar reservado")
 			end,

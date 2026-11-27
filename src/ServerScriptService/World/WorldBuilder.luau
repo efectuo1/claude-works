@@ -68,14 +68,25 @@ local function buildTerrain()
 				local z = -MAP_HALF + (iz - 0.5) * VOXEL
 				local h = heights[ix][iz]
 				local occ = math.clamp((h - y) / VOXEL + 0.5, 0, 1)
+				local material = Enum.Material.Air
+				if occ > 0 then
+					material = materialAt(x, z, h)
+				elseif y < MapLayout.SEA_LEVEL then
+					-- Sobre el fondo del mar y bajo el nivel del agua: agua de verdad, no un vacío.
+					material = Enum.Material.Water
+					occ = 1
+				end
 				occupancy[ix][iy][iz] = occ
-				materials[ix][iy][iz] = if occ > 0 then materialAt(x, z, h) else Enum.Material.Air
+				materials[ix][iy][iz] = material
 			end
 		end
 	end
 
 	local region = Region3.new(Vector3.new(-MAP_HALF, MIN_Y, -MAP_HALF), Vector3.new(MAP_HALF, MAX_Y, MAP_HALF))
 	terrain:WriteVoxels(region, VOXEL, materials, occupancy)
+	terrain.WaterColor = Color3.fromRGB(70, 200, 235)
+	terrain.WaterTransparency = 0.45
+	terrain.WaterWaveSize = 0.15
 end
 
 local function ensure(parent: Instance, className: string, configure: (Instance) -> ())

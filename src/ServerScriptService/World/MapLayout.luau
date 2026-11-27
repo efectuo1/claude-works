@@ -21,6 +21,13 @@ MapLayout.FLAT_HEIGHT = 2
 MapLayout.BLEND = 30 -- studs de transición desde una zona plana hasta el relieve
 MapLayout.EDGE_WIDTH = 24 -- franja de roca en el borde del mapa
 
+-- Isla: meseta circular rodeada de mar. Dentro, la tierra tiene poco relieve; el borde cae en
+-- un acantilado de roca hasta el fondo del mar. Fuera de la isla no hay tierra, solo agua.
+MapLayout.ISLAND_RADIUS = 255
+MapLayout.RIM_WIDTH = 50 -- anchura del acantilado de roca que baja desde la meseta
+MapLayout.SEA_FLOOR = -10 -- altura del fondo del mar
+MapLayout.SEA_LEVEL = 0 -- nivel del agua
+
 -- Solo el hub ocupa el terreno principal. Las modalidades viven en su propia isla (ModeLayout),
 -- lejos del mapa, así que no necesitan zona aquí.
 local REGIONS: { Region } = {
@@ -39,7 +46,7 @@ local SPAWN_POINTS: { [string]: Vector2 } = {
 	Wolf_3 = Vector2.new(-30, -150),
 	Sprite_1 = Vector2.new(90, 130),
 	Sprite_2 = Vector2.new(150, -120),
-	Brute_1 = Vector2.new(120, -200),
+	Brute_1 = Vector2.new(100, -165),
 }
 
 local function distanceToSegment(p: Vector2, a: Vector2, b: Vector2): number
@@ -69,11 +76,18 @@ end
 -- Altura del terreno en (x, z). Relieve de ruido, aplanado por cada zona y cada camino.
 -- Se aplican en orden: dentro de cualquiera de ellos la altura queda en FLAT_HEIGHT,
 -- y la transición es continua.
+-- Cuánto de la isla es tierra en un punto: 1 en la meseta, 0 en el mar, con transición suave en el borde.
+local function landMask(r: number): number
+	local t = math.clamp((MapLayout.ISLAND_RADIUS - r) / MapLayout.RIM_WIDTH, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
 function MapLayout.height(x: number, z: number): number
-	local broad = math.noise(x / 110, z / 110, 3.7)
-	local detail = math.noise(x / 28, z / 28, 9.1) * 0.5
-	local h = 6 + broad * 34 + detail * 5
+	local broad = math.noise(x / 140, z / 140, 3.7)
+	local detail = math.noise(x / 30, z / 30, 9.1) * 0.5
 	local p = Vector2.new(x, z)
+	local land = MapLayout.FLAT_HEIGHT + 2 + broad * 7 + detail * 1.5
+	local h = MapLayout.SEA_FLOOR + (land - MapLayout.SEA_FLOOR) * landMask(p.Magnitude)
 
 	for _, region in REGIONS do
 		local d = (p - region.center).Magnitude - region.radius
@@ -92,6 +106,10 @@ end
 function MapLayout.isClear(p: Vector2, margin: number): boolean
 	local limit = MapLayout.HALF_SIZE - MapLayout.EDGE_WIDTH - margin
 	if math.abs(p.X) > limit or math.abs(p.Y) > limit then
+		return false
+	end
+	-- Fuera de la meseta (en el acantilado o en el mar) no se pone nada de decoración ni de mobs.
+	if p.Magnitude > MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH / 2 - margin then
 		return false
 	end
 	for _, region in REGIONS do
@@ -113,6 +131,14 @@ function MapLayout.surfaceAt(x: number, z: number, h: number): Surface
 		return "Rock"
 	end
 	local p = Vector2.new(x, z)
+	local r = p.Magnitude
+	-- Playa en el borde de la isla y acantilado de roca lila debajo de la meseta.
+	if r > MapLayout.ISLAND_RADIUS - 14 then
+		return "Sand"
+	end
+	if r > MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH then
+		return "Rock"
+	end
 	-- Los caminos van primero: así el de piedra no se corta con el anillo de arena de la plaza.
 	for _, corridor in CORRIDORS do
 		if distanceToSegment(p, corridor.from, corridor.to) <= corridor.halfWidth then
