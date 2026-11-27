@@ -22,14 +22,13 @@ local MobController = require(ServerScriptService.Mobs.MobController)
 local MobRegistry = require(ServerScriptService.Mobs.MobRegistry)
 local InstanceRouter = require(ServerScriptService.Instances.InstanceRouter)
 
-export type Boss = { id: string, mobId: string, minLevel: number }
+export type Boss = { id: string, mobId: string, minLevel: number, arena: string }
 
 export type Dependencies = {
 	events: DomainEvents.Events,
 	controller: MobController.Dependencies,
 	templates: Instance,
 	mobsFolder: Instance,
-	bossPosition: Vector3,
 	exitPosition: Vector3, -- a dónde vuelve quien sale de la sala de jefes
 	getLevel: (userId: number) -> number?,
 	grantBoss: (userId: number) -> (),
@@ -38,9 +37,11 @@ export type Dependencies = {
 }
 
 -- Jefes elegibles. minLevel es provisional hasta que se definan los niveles.
+-- arena: escenario de ModeLayout (isla propia con su ambientación). Los dos provisionales usan
+-- konoha y wano hasta que entren Pain (Konoha destruida) y Kaido (Wano), que tendrán cada uno su mapa.
 local BOSSES: { Boss } = {
-	{ id = "ember_tyrant", mobId = "ember_tyrant", minLevel = 10 },
-	{ id = "ash_captain", mobId = "ash_captain", minLevel = 5 },
+	{ id = "ember_tyrant", mobId = "ember_tyrant", minLevel = 10, arena = "konoha" },
+	{ id = "ash_captain", mobId = "ash_captain", minLevel = 5, arena = "wano" },
 }
 
 local DIFFICULTY = { normal = 1, dificil = 1.5, pesadilla = 2 }
@@ -109,7 +110,7 @@ function JefesService.new(deps: Dependencies)
 
 		local definition = table.clone(baseDefinition)
 		definition.maxHealth = math.floor(baseDefinition.maxHealth * current.healthMult)
-		local home = deps.bossPosition
+		local home = ModeLayout.bossArenaPosition(current.boss.arena)
 		local instanceId = `jefe_{current.id}`
 
 		local model = template:Clone()
@@ -168,7 +169,7 @@ function JefesService.new(deps: Dependencies)
 				deps.grantBoss(userId)
 			end
 			deps.notify(userId, { kind = "end", result = result, boss = current.boss.id })
-			teleport(userId, ModeLayout.bossLobby())
+			teleport(userId, ModeLayout.bossArenaPosition(current.boss.arena))
 		end
 	end
 
@@ -214,7 +215,7 @@ function JefesService.new(deps: Dependencies)
 			if deps.router then
 				deps.router.enter(userId, current.id)
 			end
-			teleport(userId, ModeLayout.bossLobby())
+			teleport(userId, ModeLayout.bossArenaPosition(boss.arena))
 			return Result.ok(true)
 		end
 
@@ -304,7 +305,7 @@ function JefesService.new(deps: Dependencies)
 					local character = if player then player.Character else nil
 					local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
 					if root ~= nil and root.Position.Y < ModeLayout.deckY() - ModeLayout.FALL_DEPTH then
-						teleport(userId, deps.bossPosition)
+						teleport(userId, ModeLayout.bossArenaPosition(current.boss.arena))
 					end
 				end
 			end

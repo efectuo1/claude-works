@@ -77,12 +77,35 @@ return {
 				end
 			end,
 
-			["la sala de jefes tiene lobby, puente y arena dentro de su zona"] = function()
+			["el lobby de jefes cae dentro de su isla"] = function()
 				local lobby = ModeLayout.bossLobbyBox()
-				local arena = ModeLayout.bossArena()
 				expect(inIsland(lobby.center, ModeLayout.bossOrigin()), "el lobby está fuera de la isla de jefes")
-				expect(inIsland(arena.center, ModeLayout.bossOrigin()), "la arena está fuera de la isla de jefes")
-				expect(inIsland(ModeLayout.bossBridge().from, ModeLayout.bossOrigin()), "el puente empieza fuera")
+			end,
+
+			["cada escenario de jefe tiene su arena dentro de su isla"] = function()
+				for _, arena in ModeLayout.ARENA_IDS do
+					local deck = ModeLayout.bossArenaDeck(arena)
+					expect(inIsland(deck.center, ModeLayout.bossArenaOrigin(arena)), `la arena {arena} queda fuera de su isla`)
+					expect(deck.radius < ModeLayout.ISLAND_RADIUS, `la arena {arena} es más grande que su isla`)
+				end
+			end,
+
+			["los escenarios de jefe están lejos de la sala y entre sí"] = function()
+				local hall = ModeLayout.bossOrigin()
+				local minGap = ModeLayout.ISLAND_RADIUS * 2
+				local ids = ModeLayout.ARENA_IDS
+				for index, arena in ids do
+					local origin = ModeLayout.bossArenaOrigin(arena)
+					expect((origin - hall).Magnitude > minGap, `{arena} está demasiado cerca de la sala`)
+					for other = index + 1, #ids do
+						local gap = (origin - ModeLayout.bossArenaOrigin(ids[other])).Magnitude
+						expect(gap > minGap, `{arena} y {ids[other]} están demasiado cerca`)
+					end
+				end
+			end,
+
+			["un escenario desconocido cae en konoha"] = function()
+				expect(ModeLayout.bossArenaOrigin("nada") == ModeLayout.bossArenaOrigin("konoha"), "debe usar konoha por defecto")
 			end,
 
 			["los pads de jefes están dentro del lobby"] = function()

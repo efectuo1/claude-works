@@ -473,7 +473,6 @@ if world ~= nil then
 		controller = world.controller,
 		templates = world.templates,
 		mobsFolder = world.mobsFolder,
-		bossPosition = ModeLayout.bossArenaPosition(),
 		exitPosition = ModeLayout.hubSpawn(),
 		getLevel = function(userId: number): number?
 			local data = profiles.get(userId)

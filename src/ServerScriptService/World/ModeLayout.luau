@@ -119,18 +119,18 @@ function ModeLayout.waveSpawnPoints(count: number): { Vector2 }
 end
 
 -- ---------- Sala de jefes ----------
+-- La sala (lobby con los pads de jefe) está en BOSS_ISLAND. Cada escenario de jefe es una isla propia,
+-- lejos de la sala y de las demás, así que cada jefe tiene su mapa y no se mezclan.
+local ARENA_ORIGINS: { [string]: Vector2 } = {
+	konoha = Vector2.new(8000, -900),
+	wano = Vector2.new(8000, -1800),
+}
+ModeLayout.ARENA_IDS = { "konoha", "wano" }
+ModeLayout.ARENA_RADIUS = 30
 
 function ModeLayout.bossLobbyBox(): Box
 	local o = ModeLayout.bossOrigin()
 	return { name = "Lobby", center = offset(o, 0, -40), size = Vector2.new(48, 34) }
-end
-
-function ModeLayout.bossArena(): Deck
-	return { name = "Arena", center = offset(ModeLayout.bossOrigin(), 0, 22), radius = 30 }
-end
-
-function ModeLayout.bossBridge(): Bridge
-	return { from = ModeLayout.bossLobbyBox().center, to = ModeLayout.bossArena().center, width = 10 }
 end
 
 -- Pad de un jefe (fila) y dificultad (columna). Fila 1..2 y columna 1..3.
@@ -149,9 +149,19 @@ function ModeLayout.bossLobby(): Vector3
 	return standing(ModeLayout.bossLobbyBox().center)
 end
 
--- Centro de la arena de jefes: donde aparece el jefe y el jugador al empezar.
-function ModeLayout.bossArenaPosition(): Vector3
-	return standing(ModeLayout.bossArena().center)
+-- Origen de la isla de un escenario de jefe. Un nombre desconocido cae en konoha.
+function ModeLayout.bossArenaOrigin(arena: string): Vector2
+	return ARENA_ORIGINS[arena] or ARENA_ORIGINS.konoha
+end
+
+-- Disco de combate de un escenario.
+function ModeLayout.bossArenaDeck(arena: string): Deck
+	return { name = "Arena", center = ModeLayout.bossArenaOrigin(arena), radius = ModeLayout.ARENA_RADIUS }
+end
+
+-- Punto donde aparecen el jugador y el jefe de un escenario.
+function ModeLayout.bossArenaPosition(arena: string): Vector3
+	return standing(ModeLayout.bossArenaOrigin(arena))
 end
 
 -- ---------- Hub ----------

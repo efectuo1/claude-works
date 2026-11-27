@@ -122,26 +122,103 @@ local function buildWave(parent: Instance)
 	end
 end
 
-local function buildBoss(parent: Instance)
+-- Sala de jefes: solo lobby y base. Las peleas son islas aparte (buildArena).
+local function buildHall(parent: Instance)
 	local y = ModeLayout.deckY()
 	local lobby = ModeLayout.bossLobbyBox()
-	local arena = ModeLayout.bossArena()
-	-- Isla de la sala: base de piedra que cubre lobby, puente y arena.
 	disc(parent, "IslaBase", ModeLayout.bossOrigin(), ModeLayout.ISLAND_RADIUS, MapLayout.FLAT_HEIGHT - 0.3, BASE_STONE, Enum.Material.Slate)
-
 	part(parent, "SalaJefes_Lobby", Vector3.new(lobby.size.X, 0.6, lobby.size.Y), CFrame.new(lobby.center.X, y, lobby.center.Y), STONE, Enum.Material.Slate)
-	disc(parent, "SalaJefes_Arena", arena.center, arena.radius, y, MARBLE, Enum.Material.Marble)
+end
 
-	-- Pilares alrededor de la arena: marcan el borde y dan referencia visual.
-	for index = 0, 7 do
-		local angle = index * math.pi / 4
-		local x = arena.center.X + math.cos(angle) * (arena.radius - 2)
-		local z = arena.center.Y + math.sin(angle) * (arena.radius - 2)
-		part(parent, "Pilar", Vector3.new(2.4, 9, 2.4), CFrame.new(x, y + 4.5, z), MARBLE, Enum.Material.Marble)
+type Theme = {
+	ground: Color3,
+	groundMat: Enum.Material,
+	floor: Color3,
+	floorMat: Enum.Material,
+	pillar: Color3?, -- si existe, se levantan pilares en el borde del disco
+	decor: (Instance, Vector2, number, number) -> (),
+}
+
+-- Konoha destruida: suelo de piedra con cráter, pilares rotos, brasas y una puerta caída.
+local function decorKonoha(parent: Instance, origin: Vector2, radius: number, y: number)
+	local crater = disc(parent, "Cráter", origin, 9, y + 0.35, Color3.fromRGB(60, 45, 45), Enum.Material.Basalt)
+	crater.CanCollide = false
+	for index = 0, 5 do
+		local angle = index * math.pi / 3
+		local height = 4 + (index % 3) * 2.5
+		local x = origin.X + math.cos(angle) * (radius - 5)
+		local z = origin.Y + math.sin(angle) * (radius - 5)
+		local pillar = part(parent, "Pilar roto", Vector3.new(2.4, height, 2.4), CFrame.new(x, y + height / 2, z) * CFrame.Angles(0, 0, math.rad(index % 2 == 0 and 6 or -9)), Color3.fromRGB(150, 140, 130), Enum.Material.Concrete)
+		pillar.CanCollide = true
 	end
+	for index = 0, 5 do
+		local angle = index * math.pi / 3 + math.pi / 6
+		local spot = origin + Vector2.new(math.cos(angle), math.sin(angle)) * 14
+		local ember = part(parent, "Brasa", Vector3.new(1.2, 1.2, 1.2), CFrame.new(spot.X, y + 0.8, spot.Y), Color3.fromRGB(255, 120, 40), Enum.Material.Neon)
+		ember.Shape = Enum.PartType.Ball
+		ember.CanCollide = false
+	end
+	-- Puerta caída al norte: dos postes y un dintel torcido en el suelo.
+	local gate = origin + Vector2.new(0, -radius + 3)
+	for _, side in { -1, 1 } do
+		part(parent, "Puerta_poste", Vector3.new(3, 10, 3), CFrame.new(gate.X + side * 6, y + 5, gate.Y), Color3.fromRGB(150, 140, 130), Enum.Material.Concrete)
+	end
+	part(parent, "Puerta_dintel", Vector3.new(14, 2, 3), CFrame.new(gate.X, y + 10, gate.Y) * CFrame.Angles(0, 0, math.rad(8)), Color3.fromRGB(120, 110, 105), Enum.Material.Concrete)
+end
 
-	local link = ModeLayout.bossBridge()
-	bridge(parent, link.from, link.to, link.width, y)
+-- Wano: suelo de madera roja, pilares laqueados, pagoda al norte y cerezos fuera del disco.
+local function decorWano(parent: Instance, origin: Vector2, radius: number, y: number)
+	local base = origin + Vector2.new(0, -radius + 8)
+	local wood = Color3.fromRGB(200, 160, 110)
+	local roof = Color3.fromRGB(70, 35, 35)
+	for tier = 0, 2 do
+		local size = 14 - tier * 4
+		part(parent, `Pagoda_piso{tier}`, Vector3.new(size, 4, size), CFrame.new(base.X, y + 2 + tier * 4, base.Y), wood, Enum.Material.Wood)
+		part(parent, `Pagoda_techo{tier}`, Vector3.new(size + 4, 1, size + 4), CFrame.new(base.X, y + 4.5 + tier * 4, base.Y), roof, Enum.Material.Wood)
+	end
+	for _, angle in { math.pi / 4, 3 * math.pi / 4, 5 * math.pi / 4, 7 * math.pi / 4 } do
+		local spot = origin + Vector2.new(math.cos(angle), math.sin(angle)) * 42
+		part(parent, "Cerezo_tronco", Vector3.new(1.6, 9, 1.6), CFrame.new(spot.X, y + 4.5, spot.Y), Color3.fromRGB(110, 70, 50), Enum.Material.Wood)
+		local canopy = part(parent, "Cerezo_copa", Vector3.new(9, 9, 9), CFrame.new(spot.X, y + 11, spot.Y), Color3.fromRGB(255, 170, 200), Enum.Material.SmoothPlastic)
+		canopy.Shape = Enum.PartType.Ball
+	end
+end
+
+local THEMES: { [string]: Theme } = {
+	konoha = {
+		ground = Color3.fromRGB(120, 110, 110),
+		groundMat = Enum.Material.Slate,
+		floor = Color3.fromRGB(95, 90, 95),
+		floorMat = Enum.Material.Slate,
+		decor = decorKonoha,
+	},
+	wano = {
+		ground = Color3.fromRGB(210, 180, 130),
+		groundMat = Enum.Material.Sand,
+		floor = Color3.fromRGB(170, 80, 50),
+		floorMat = Enum.Material.Wood,
+		pillar = Color3.fromRGB(190, 40, 40),
+		decor = decorWano,
+	},
+}
+
+-- Isla de combate de un escenario de jefe, con su ambientación.
+local function buildArena(parent: Instance, arena: string)
+	local theme = THEMES[arena] or THEMES.konoha
+	local y = ModeLayout.deckY()
+	local deck = ModeLayout.bossArenaDeck(arena)
+	disc(parent, "IslaBase", deck.center, ModeLayout.ISLAND_RADIUS, MapLayout.FLAT_HEIGHT - 0.3, theme.ground, theme.groundMat)
+	disc(parent, "Suelo", deck.center, deck.radius, y, theme.floor, theme.floorMat)
+
+	if theme.pillar ~= nil then
+		for index = 0, 7 do
+			local angle = index * math.pi / 4
+			local x = deck.center.X + math.cos(angle) * (deck.radius - 2)
+			local z = deck.center.Y + math.sin(angle) * (deck.radius - 2)
+			part(parent, "Pilar", Vector3.new(2.4, 9, 2.4), CFrame.new(x, y + 4.5, z), theme.pillar, Enum.Material.Wood)
+		end
+	end
+	theme.decor(parent, deck.center, deck.radius, y)
 end
 
 -- Carpeta de las modalidades. Los servicios meten aquí sus pads.
@@ -167,10 +244,17 @@ function ModeArenaBuilder.build()
 	waveModel.Parent = folder
 	buildWave(waveModel)
 
-	local bossModel = Instance.new("Model")
-	bossModel.Name = "Jefes"
-	bossModel.Parent = folder
-	buildBoss(bossModel)
+	local hallModel = Instance.new("Model")
+	hallModel.Name = "Jefes"
+	hallModel.Parent = folder
+	buildHall(hallModel)
+
+	for _, arena in ModeLayout.ARENA_IDS do
+		local model = Instance.new("Model")
+		model.Name = `Escenario_{arena}`
+		model.Parent = folder
+		buildArena(model, arena)
+	end
 end
 
 return ModeArenaBuilder
