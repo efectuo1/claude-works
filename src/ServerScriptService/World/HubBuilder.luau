@@ -1,11 +1,12 @@
 --!strict
 --[[
 	Hub de entrada. Disposición (vista desde la fuente, con el norte arriba = -Z):
-	  Norte: gran ruleta.            Centro: fuente grande, con chispas.
-	  Oeste: tres casas grandes de modalidad (Oleadas, Jefes, próximamente).
-	  Este: casa grande de tienda. El jugador aparece al lado de la fuente, por la derecha.
-	  Sur: varios tableros de clasificación.
-	Se rehace en cada arranque. Los carteles y los pads de entrada son los que usan los servicios.
+	  Centro: plaza con fuente azul de cinco pisos. El jugador aparece al lado, por el este.
+	  En cada punta de la isla central hay un punto de interés enorme sobre un círculo de arena:
+	    Norte: gran ruleta.   Sur: tableros de clasificación.
+	    Oeste: tres casas de modalidad (Oleadas, Jefes, próximamente).   Este: casa de la tienda.
+	Las posiciones y escalas salen de MapLayout.landmarks(). Se rehace en cada arranque.
+	Los carteles, el prompt de la tienda y los pads de entrada son los que usan los servicios.
 ]]
 
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -16,18 +17,14 @@ local MapLayout = require(ServerScriptService.World.MapLayout)
 
 local HubBuilder = {}
 
-local HOUSE_X = -26 -- las casas de modalidad van en fila al oeste
 local HOUSE_SCALE = 1.6
-local SHOP_X = 27
-local WHEEL_Z = -20
-local BOARD_Z = 25
-local PAD_OFFSET = 9.5 -- distancia del pad a la casa, hacia la fuente
+local PAD_OFFSET = 9.5 -- distancia del pad a la casa, hacia la plaza
 
 -- Casas de modalidad, de norte a sur. Cada una tiene un pad delante que lleva a su lobby.
 local MODE_HOUSES = {
-	{ id = "Oleadas", z = -16, color = Color3.fromRGB(90, 230, 110), destination = "wave" },
+	{ id = "Oleadas", z = -12, color = Color3.fromRGB(90, 230, 110), destination = "wave" },
 	{ id = "Jefes", z = 0, color = Color3.fromRGB(255, 90, 90), destination = "boss" },
-	{ id = "Proximamente", z = 16, color = Color3.fromRGB(150, 150, 165), destination = nil },
+	{ id = "Proximamente", z = 12, color = Color3.fromRGB(150, 150, 165), destination = nil },
 }
 
 local SAND = Color3.fromRGB(250, 220, 150)
@@ -230,21 +227,123 @@ local function fountain(hub: Instance, center: Vector3)
 	emitter(hub, center + Vector3.new(0, top + 1.4, 0), WATER_COLOR, 14, 5, 1.6, 22)
 end
 
--- Zonas ocupadas por edificios: ni árboles ni setos dentro.
-local function blocked(x: number, z: number): boolean
-	if x < -18 and x > -36 and z > -24 and z < 24 then
-		return true -- casas de modalidad
+-- ---------- Puntos de interés ----------
+-- Cada uno se construye en tamaño base alrededor del origen local, con la puerta o la cara hacia +X (la plaza),
+-- y luego se agranda y se coloca en su punta de la isla (ver placeLandmark).
+
+-- Piedras grandes en el borde del círculo de arena, como en la referencia.
+local function stoneRing(model: Model, radius: number, groundY: number, rng: Random)
+	local count = 20
+	for index = 0, count - 1 do
+		local angle = index * 2 * math.pi / count + rng:NextNumber(-0.05, 0.05)
+		local position = Vector3.new(math.cos(angle) * radius, groundY + 0.5, math.sin(angle) * radius)
+		flatDisc(model, "PiedraBorde", rng:NextNumber(1, 1.6), 0.5, position, STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Slate)
 	end
-	if x > 18 and x < 36 and z > -8 and z < 8 then
-		return true -- tienda
+end
+
+-- Tres casas de modalidad en fila, con un pad delante de cada una que lleva a su lobby.
+local function buildModes(model: Model, groundY: number)
+	for _, mode in MODE_HOUSES do
+		cabin(model, `Casa{mode.id}`, Vector3.new(0, groundY, mode.z), Vector3.new(-1, 0, 0), HOUSE_SCALE)
+		local pad = PadBuilder.build(model, `Entrada_{mode.id}`, Vector3.new(PAD_OFFSET, groundY + 0.6, mode.z), mode.color, mode.destination and mode.id or "Próximamente")
+		if mode.destination ~= nil then
+			local destination = if mode.destination == "wave" then ModeLayout.waveLobby() else ModeLayout.bossLobby()
+			PadBuilder.prompt(pad, `Ir a {mode.id}`, "Modalidad", function(player: Player)
+				local character = player.Character
+				if character ~= nil then
+					character:PivotTo(CFrame.new(destination))
+				end
+			end)
+		end
 	end
-	if math.abs(x) < 9 and z < -14 and z > -28 then
-		return true -- ruleta
+	-- Calle de adoquín delante de los pads.
+	local street = PAD_OFFSET + 5
+	local mid = Vector3.new(street, groundY + 0.35, 0)
+	part(model, "Calle", Vector3.new(4, 0.3, 34), CFrame.new(mid), ROAD, Enum.Material.Cobblestone)
+end
+
+-- Tienda: casa grande con cartel y un prompt que abre la ventana de tienda (Bootstrap lo conecta).
+local SHOP_SCALE = 2.1
+local function buildShop(model: Model, groundY: number)
+	local door = cabin(model, "Tienda", Vector3.new(0, groundY, 0), Vector3.new(-1, 0, 0), SHOP_SCALE)
+	-- El cartel va sobre la puerta, de cara a la plaza (+X).
+	local board = part(model, "TiendaCartel", Vector3.new(6, 1.6, 0.3), CFrame.new(door + Vector3.new(0.2, 4.4 * SHOP_SCALE, 0)) * CFrame.Angles(0, math.rad(-90), 0), BOARD_COLOR)
+	sign(board, "TIENDA")
+	local mark = part(model, "TiendaMarca", Vector3.new(0.6, 0.6, 0.6), CFrame.new(door + Vector3.new(0, 0.3, 0)), Color3.fromRGB(255, 220, 90), Enum.Material.Neon)
+	mark.Transparency = 1
+	mark.CanCollide = false
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "PromptTienda"
+	prompt.ActionText = "Abrir tienda"
+	prompt.ObjectText = "Tienda"
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = mark
+	-- Adoquín desde la puerta hacia la plaza.
+	part(model, "CaminoTienda", Vector3.new(14, 0.3, 4), CFrame.new(door + Vector3.new(7, 0.35, 0)), ROAD, Enum.Material.Cobblestone)
+end
+
+-- Ruleta grande: disco vertical sobre un poste alto, con la cara hacia la plaza (+X) y un pedestal de piedra.
+local WHEEL_RADIUS = 7
+local function buildWheel(model: Model, groundY: number)
+	local wheelHeight = 10
+	flatDisc(model, "RuletaBase", 6, 1, Vector3.new(0, groundY + 0.5, 0), Color3.fromRGB(190, 200, 215), Enum.Material.Marble)
+	part(model, "RuletaPoste", Vector3.new(1.2, wheelHeight, 1.2), CFrame.new(0, groundY + wheelHeight / 2, 0), POST_COLOR, Enum.Material.Metal)
+	-- El cilindro apunta a lo largo de X: sin girar, su cara mira a la plaza.
+	local wheel = part(model, "Ruleta", Vector3.new(1.2, WHEEL_RADIUS * 2, WHEEL_RADIUS * 2), CFrame.new(0, groundY + wheelHeight + 1, 0), WHEEL_COLOR, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	for index = 0, 7 do
+		local angle = math.rad(index * 45)
+		part(model, "RuletaSector", Vector3.new(1.4, 1.6, 1.6), wheel.CFrame * CFrame.new(0.2, math.sin(angle) * (WHEEL_RADIUS - 0.4), math.cos(angle) * (WHEEL_RADIUS - 0.4)), STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
 	end
-	if math.abs(x) < 14 and z > 20 and z < 30 then
-		return true -- tableros
+end
+
+-- Tres tableros de clasificación de cara a la plaza, y un montón de gemas de colores detrás, como en la referencia.
+local function buildBoards(model: Model, groundY: number, rng: Random)
+	local boards = { { z = -9, text = "VICTORIAS" }, { z = 0, text = "CLASIFICACIÓN" }, { z = 9, text = "RANGO" } }
+	for _, info in boards do
+		part(model, "TableroPoste", Vector3.new(0.8, 6, 0.8), CFrame.new(0, groundY + 3, info.z), POST_COLOR, Enum.Material.Metal)
+		-- La cara con texto (-Z local) gira -90° para mirar a +X.
+		local board = part(model, "Clasificacion", Vector3.new(7, 4, 0.6), CFrame.new(0, groundY + 7.5, info.z) * CFrame.Angles(0, math.rad(-90), 0), BOARD_COLOR)
+		sign(board, info.text)
 	end
-	return false
+	for index = 0, 13 do
+		local row = index // 7
+		local column = index % 7
+		local offset = Vector3.new(-6 - row * 2.2 + rng:NextNumber(-0.3, 0.3), 1 + row * 1.6 + (column % 2) * 0.5, (column - 3) * 1.9)
+		part(model, "Gema", Vector3.new(2, 2, 2), CFrame.new(Vector3.new(0, groundY, 0) + offset), GEM_COLORS[index % #GEM_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
+	end
+end
+
+-- Escala un modelo alrededor de su origen conservando las distancias de interacción y los rótulos, y lo coloca.
+-- Los botones, rótulos y luces se fijan a mano porque no se sabe si ScaleTo los agranda.
+local function scaleAndPlace(model: Model, groundY: number, scale: number, placement: CFrame)
+	local reach: { [ProximityPrompt]: number } = {}
+	local offsets: { [BillboardGui]: Vector3 } = {}
+	local distances: { [BillboardGui]: number } = {}
+	local lights: { [PointLight]: number } = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("ProximityPrompt") then
+			reach[descendant] = descendant.MaxActivationDistance
+		elseif descendant:IsA("BillboardGui") then
+			offsets[descendant] = descendant.StudsOffset
+			distances[descendant] = descendant.MaxDistance
+		elseif descendant:IsA("PointLight") then
+			lights[descendant] = descendant.Range
+		end
+	end
+	model.WorldPivot = CFrame.new(0, groundY, 0)
+	model:ScaleTo(scale)
+	for prompt, distance in reach do
+		prompt.MaxActivationDistance = distance * scale
+	end
+	for gui, offset in offsets do
+		gui.StudsOffset = offset * scale
+		gui.MaxDistance = distances[gui] * scale
+	end
+	for light, range in lights do
+		light.Range = math.min(range * scale, 60)
+	end
+	model:PivotTo(placement)
 end
 
 function HubBuilder.build(heightAt: HeightAt)
@@ -257,159 +356,98 @@ function HubBuilder.build(heightAt: HeightAt)
 	if previous ~= nil then
 		previous:Destroy()
 	end
-	local hub = Instance.new("Model")
+	local hub = Instance.new("Folder")
 	hub.Name = "Hub"
 	hub.Parent = workspace
 
 	local rng = Random.new(42) -- semilla fija: siempre el mismo hub
+	-- Todas las zonas planas están a FLAT_HEIGHT: los modelos se construyen en el origen y se colocan sin desfase vertical.
 	local groundY = heightAt(0, 0)
 	local center = Vector3.new(0, groundY, 0)
 
-	-- Plaza empedrada: anillo de adoquín y círculo de mármol en el centro, con farolas y macizos de flores alrededor.
-	-- Como la referencia: suelo de arena, círculo de piedra bajo la fuente y piedras grises en anillo.
-	flatDisc(hub, "Plaza", 30, 0.4, center + Vector3.new(0, 0.2, 0), SAND, Enum.Material.Sand)
-	flatDisc(hub, "PlazaCentro", 17, 0.25, center + Vector3.new(0, 0.45, 0), Color3.fromRGB(190, 200, 215), Enum.Material.Cobblestone)
+	-- ---------- Plaza central: solo la fuente y su entorno ----------
+	local plaza = Instance.new("Model")
+	plaza.Name = "Plaza"
+	plaza.Parent = hub
+
+	-- Suelo de arena, círculo de piedra bajo la fuente y piedras grises en anillo, como la referencia.
+	flatDisc(plaza, "Plaza", 30, 0.4, center + Vector3.new(0, 0.2, 0), SAND, Enum.Material.Sand)
+	flatDisc(plaza, "PlazaCentro", 17, 0.25, center + Vector3.new(0, 0.45, 0), Color3.fromRGB(190, 200, 215), Enum.Material.Cobblestone)
 	for index = 0, 13 do
 		local angle = math.rad(index * 360 / 14 + 8)
-		flatDisc(hub, "PiedraAnillo", 1.8, 0.3, center + Vector3.new(math.cos(angle) * 26, 0.5, math.sin(angle) * 26), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
+		flatDisc(plaza, "PiedraAnillo", 1.8, 0.3, center + Vector3.new(math.cos(angle) * 26, 0.5, math.sin(angle) * 26), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
 	end
 	for index = 0, 11 do
 		local angle = math.rad(index * 30 + 15)
-		lamp(hub, center + Vector3.new(math.cos(angle) * 22, 0.5, math.sin(angle) * 22))
+		lamp(plaza, center + Vector3.new(math.cos(angle) * 22, 0.5, math.sin(angle) * 22))
 	end
 	for index = 0, 5 do
 		local angle = math.rad(index * 60)
-		flowerBed(hub, center + Vector3.new(math.cos(angle) * 21, 0.5, math.sin(angle) * 21), index)
+		flowerBed(plaza, center + Vector3.new(math.cos(angle) * 21, 0.5, math.sin(angle) * 21), index)
 	end
-	-- Círculos grandes de arena con piedras encima, como en la referencia. Van en el borde de la plaza,
-	-- entre las casas, la tienda y las terrazas (30°, 90° y 330°).
+	-- Círculos grandes de arena con piedras en el borde de la plaza (30°, 90° y 330°).
 	for _, degrees in { 30, 90, 330 } do
 		local angle = math.rad(degrees)
 		local spot = center + Vector3.new(math.cos(angle) * 36, 0.3, math.sin(angle) * 36)
-		flatDisc(hub, "ArenaGrande", 9, 0.3, spot, SAND, Enum.Material.Sand)
+		flatDisc(plaza, "ArenaGrande", 9, 0.3, spot, SAND, Enum.Material.Sand)
 		for stone = 0, 5 do
 			local a = stone * math.pi / 3
-			flatDisc(hub, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
+			flatDisc(plaza, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
 		end
 	end
 	for index = 0, 15 do
 		local angle = math.rad(index * 22.5)
-		local position = center + Vector3.new(math.cos(angle) * 14, 0.6, math.sin(angle) * 14)
-		flatDisc(hub, "Piedra", 1.2, 0.4, position, STONE_COLORS[(index % #STONE_COLORS) + 1], Enum.Material.Slate)
+		flatDisc(plaza, "Piedra", 1.2, 0.4, center + Vector3.new(math.cos(angle) * 14, 0.6, math.sin(angle) * 14), STONE_COLORS[(index % #STONE_COLORS) + 1], Enum.Material.Slate)
 	end
-
-	fountain(hub, center)
-
-	-- Caminos de tierra como en la referencia: una calle por las entradas del oeste y un camino a la tienda.
-	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, -16), Vector2.new(HOUSE_X + PAD_OFFSET, 16), heightAt)
-	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, 0), Vector2.new(-4, 0), heightAt)
-	road(hub, Vector2.new(4, 0), Vector2.new(SHOP_X - 2, 0), heightAt)
-
-	-- Casas de modalidad al oeste, con la puerta hacia la fuente y un pad delante.
-	for _, mode in MODE_HOUSES do
-		local position = Vector3.new(HOUSE_X, heightAt(HOUSE_X, mode.z), mode.z)
-		cabin(hub, `Casa{mode.id}`, position, Vector3.new(HOUSE_X, 0, mode.z), HOUSE_SCALE)
-		local padX = HOUSE_X + PAD_OFFSET
-		local pad = PadBuilder.build(hub, `Entrada_{mode.id}`, Vector3.new(padX, heightAt(padX, mode.z) + 0.6, mode.z), mode.color, mode.destination and mode.id or "Próximamente")
-		if mode.destination ~= nil then
-			local destination = if mode.destination == "wave" then ModeLayout.waveLobby() else ModeLayout.bossLobby()
-			PadBuilder.prompt(pad, `Ir a {mode.id}`, "Modalidad", function(player: Player)
-				local character = player.Character
-				if character ~= nil then
-					character:PivotTo(CFrame.new(destination))
-				end
-			end)
-		end
-	end
-
-	-- Tienda: casa grande al este. Tiene un cartel y un prompt que abre la ventana de tienda (Bootstrap lo conecta).
-	local shopPosition = Vector3.new(SHOP_X, heightAt(SHOP_X, 0), 0)
-	local shopDoor = cabin(hub, "Tienda", shopPosition, Vector3.new(SHOP_X, 0, 0), HOUSE_SCALE)
-	local shopSign = part(hub, "TiendaCartel", Vector3.new(6, 1.6, 0.3), CFrame.new(shopDoor + Vector3.new(0, 4.4 * HOUSE_SCALE, 0.2)) * CFrame.Angles(0, math.rad(180), 0), BOARD_COLOR)
-	sign(shopSign, "TIENDA")
-	local shopPad = part(hub, "TiendaMarca", Vector3.new(0.6, 0.6, 0.6), CFrame.new(shopDoor + Vector3.new(0, 0.3, 0)), Color3.fromRGB(255, 220, 90), Enum.Material.Neon)
-	shopPad.Transparency = 1
-	shopPad.CanCollide = false
-	local shopPrompt = Instance.new("ProximityPrompt")
-	shopPrompt.Name = "PromptTienda"
-	shopPrompt.ActionText = "Abrir tienda"
-	shopPrompt.ObjectText = "Tienda"
-	shopPrompt.MaxActivationDistance = 10
-	shopPrompt.RequiresLineOfSight = false
-	shopPrompt.Parent = shopPad
-
-	-- Ruleta grande al norte: disco vertical de 14 studs sobre un poste alto, con el eje hacia la plaza.
-	local WHEEL_RADIUS = 7
-	local wheelBase = Vector3.new(0, heightAt(0, WHEEL_Z), WHEEL_Z)
-	local wheelHeight = 10
-	part(hub, "RuletaPoste", Vector3.new(1.2, wheelHeight, 1.2), CFrame.new(wheelBase + Vector3.new(0, wheelHeight / 2, 0)), POST_COLOR, Enum.Material.Metal)
-	local wheel = part(hub, "Ruleta", Vector3.new(1.2, WHEEL_RADIUS * 2, WHEEL_RADIUS * 2), CFrame.new(wheelBase + Vector3.new(0, wheelHeight + 1, 0)) * CFrame.Angles(0, math.rad(90), 0), WHEEL_COLOR, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-	-- Ocho sectores de colores alrededor del borde, como en la referencia.
-	for index = 0, 7 do
-		local angle = math.rad(index * 45)
-		part(hub, "RuletaSector", Vector3.new(1.4, 1.6, 1.6), wheel.CFrame * CFrame.new(0, math.sin(angle) * (WHEEL_RADIUS - 0.4), math.cos(angle) * (WHEEL_RADIUS - 0.4)), STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
-	end
-
-	-- Tableros de clasificación al sur, de cara a la plaza.
-	local boards = { { x = -9, text = "VICTORIAS" }, { x = 0, text = "CLASIFICACIÓN" }, { x = 9, text = "RANGO" } }
-	for _, info in boards do
-		local base = Vector3.new(info.x, heightAt(info.x, BOARD_Z), BOARD_Z)
-		part(hub, "TableroPoste", Vector3.new(0.8, 6, 0.8), CFrame.new(base + Vector3.new(0, 3, 0)), POST_COLOR, Enum.Material.Metal)
-		local board = part(hub, "Clasificacion", Vector3.new(7, 4, 0.6), CFrame.new(base + Vector3.new(0, 7.5, 0)), BOARD_COLOR)
-		sign(board, info.text)
-	end
-
-	-- Gemas de colores en un montón al suroeste.
-	-- Dos filas de gemas (catorce en total), más densas que antes, como el montón de la referencia.
-	local gemBase = Vector3.new(-30, heightAt(-30, 30), 30)
-	for index = 0, 13 do
-		local color = GEM_COLORS[index % #GEM_COLORS + 1]
-		local row = index // 7
-		local column = index % 7
-		local offset = Vector3.new((column - 3) * 1.8, 1 + row * 1.6 + (column % 2) * 0.5, row * 2.2 + rng:NextNumber(-0.3, 0.3))
-		part(hub, "Gema", Vector3.new(2, 2, 2), CFrame.new(gemBase + offset), color, Enum.Material.Neon, Enum.PartType.Ball)
-	end
-
-	-- Parterres de flores alrededor de la fuente (no en el lado del spawn).
 	for index = 1, 9 do
 		local angle = math.rad(index * 40)
-		local position = center + Vector3.new(math.cos(angle) * 11, 0.5, math.sin(angle) * 11)
-		flatDisc(hub, "Parterre", 2, 0.3, position, Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
+		flatDisc(plaza, "Parterre", 2, 0.3, center + Vector3.new(math.cos(angle) * 11, 0.5, math.sin(angle) * 11), Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
+	fountain(plaza, center)
 
-	-- Árboles de copa redonda en un anillo entre la plaza y las casas (30° de separación, desfasados
-	-- de las arenas para no pisarlas). El borde de la isla ya lleva sus propias terrazas: aquí no hay más.
+	-- Árboles de copa redonda en un anillo alrededor de la plaza y luciérnagas por encima.
 	for index = 0, 11 do
 		local angle = math.rad(index * 30 + 15)
 		local radius = rng:NextNumber(41, 43)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		if not blocked(x, z) then
-			tree(hub, Vector3.new(x, heightAt(x, z), z), rng)
-		end
+		tree(plaza, Vector3.new(x, heightAt(x, z), z), rng)
 	end
-
-	-- Luciérnagas repartidas por la plaza.
 	for index = 0, 7 do
 		local angle = math.rad(index * 45 + rng:NextNumber(-10, 10))
 		local radius = rng:NextNumber(8, 30)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		emitter(hub, Vector3.new(x, heightAt(x, z) + 3, z), Color3.fromRGB(240, 255, 120), 2, 1, 4, 180)
+		emitter(plaza, Vector3.new(x, heightAt(x, z) + 3, z), Color3.fromRGB(240, 255, 120), 2, 1, 4, 180)
 	end
+	scaleAndPlace(plaza, groundY, MapLayout.HUB_SCALE, CFrame.new(center))
 
-	-- Todo se construye en tamaño base y al final se agranda alrededor de la fuente: la plaza ocupa más
-	-- isla, como en la referencia, y las proporciones no cambian. Los botones de interacción se ajustan aparte.
-	local reach: { [ProximityPrompt]: number } = {}
-	for _, descendant in hub:GetDescendants() do
-		if descendant:IsA("ProximityPrompt") then
-			reach[descendant] = descendant.MaxActivationDistance
-		end
-	end
-	hub.WorldPivot = CFrame.new(center)
-	hub:ScaleTo(MapLayout.HUB_SCALE)
-	for prompt, distance in reach do
-		prompt.MaxActivationDistance = distance * MapLayout.HUB_SCALE
+	-- ---------- Puntos de interés, uno en cada punta ----------
+	local builders: { [string]: (Model) -> () } = {
+		modes = function(model)
+			buildModes(model, groundY)
+		end,
+		shop = function(model)
+			buildShop(model, groundY)
+		end,
+		wheel = function(model)
+			buildWheel(model, groundY)
+		end,
+		boards = function(model)
+			buildBoards(model, groundY, rng)
+		end,
+	}
+	for _, landmark in MapLayout.landmarks() do
+		local model = Instance.new("Model")
+		model.Name = `Zona_{landmark.id}`
+		model.Parent = hub
+		builders[landmark.kind](model)
+		-- Círculo de piedras en el borde de la arena (el terreno ya es arena dentro del radio).
+		stoneRing(model, landmark.radius / landmark.scale * 0.93, groundY, rng)
+		-- La cara/puerta del modelo mira a +X local: se gira para que mire a la plaza.
+		local inward = -landmark.center.Unit
+		local yaw = math.atan2(-inward.Y, inward.X)
+		scaleAndPlace(model, groundY, landmark.scale, CFrame.new(landmark.center.X, groundY, landmark.center.Y) * CFrame.Angles(0, yaw, 0))
 	end
 end
 

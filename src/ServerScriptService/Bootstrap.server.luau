@@ -551,7 +551,8 @@ if shopPrompt ~= nil and shopPrompt:IsA("ProximityPrompt") then
 		openWindowRemote:FireClient(player, "FolkTienda")
 	end)
 end
-local wheel = if hubFolder then hubFolder:FindFirstChild("Ruleta") else nil
+-- La ruleta vive dentro de su zona (Hub/Zona_ruleta), así que se busca en todo el hub.
+local wheel = if hubFolder then hubFolder:FindFirstChild("Ruleta", true) else nil
 if wheel ~= nil and wheel:IsA("BasePart") then
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Girar"

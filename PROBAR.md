@@ -16,7 +16,7 @@ Importante: vuelve a construir el `.rbxlx` cada vez que cambies el proyecto. Si 
 
 1. Pulsa Play (F5) y mira la ventana de salida.
 2. Debe aparecer `[Tests] todas las suites pasaron`.
-3. El jugador aparece en el hub. Los zombis aparecen en las islas de las esquinas (lobos NE, espíritus NO, bruto SE; la aldea SO aún no tiene mobs). Sal de la plaza por el camino de adoquín y cruza el puente de madera bajo el arco con el nombre de la isla.
+3. El jugador aparece junto a la fuente, en el centro. En cada punta de la isla central hay un punto de interés enorme sobre un círculo de arena: casas de modalidad al oeste, tienda al este, ruleta al norte y tableros al sur (caminos de adoquín desde la plaza). Los zombis aparecen en las islas de las esquinas (lobos NE, espíritus NO, bruto SE; la aldea SO aún no tiene mobs). Sal de la plaza por el camino de adoquín y cruza el puente de madera bajo el arco con el nombre de la isla.
 4. Acércate a menos de 8 studs de un zombi para golpear con la habilidad de alcance corto.
 
 ## Combate

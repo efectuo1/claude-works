@@ -4,6 +4,12 @@ local MapLayout = require(ServerScriptService.World.MapLayout)
 local TestHarness = require(ServerScriptService.Tests.TestHarness)
 local expect = TestHarness.expect
 
+local function distanceToSegment(p: Vector2, a: Vector2, b: Vector2): number
+	local ab = b - a
+	local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+	return (p - (a + ab * t)).Magnitude
+end
+
 local function isFlat(x: number, z: number): boolean
 	return math.abs(MapLayout.height(x, z) - MapLayout.FLAT_HEIGHT) < 1e-6
 end
@@ -92,6 +98,43 @@ return {
 				expect(plateau > high + 2, "la terraza alta debe quedar bajo la meseta")
 				expect(high > low + 2, "la terraza baja debe quedar bajo la alta")
 				expect(low > MapLayout.SEA_LEVEL, "la terraza baja debe quedar sobre el agua")
+			end,
+
+			["los cuatro puntos de interés están en puntas distintas de la isla central"] = function()
+				local landmarks = MapLayout.landmarks()
+				expect(#landmarks == 4, "debe haber cuatro puntos de interés")
+				for i, a in landmarks do
+					expect(a.center.Magnitude > 150 and a.center.Magnitude < 260, `{a.id} debe estar en una punta de la isla central`)
+					expect(MapLayout.onLand(a.center, a.radius * 0.5), `{a.id} debe quedar sobre la meseta`)
+					for j = i + 1, #landmarks do
+						local b = landmarks[j]
+						expect((a.center - b.center).Magnitude > a.radius + b.radius, `{a.id} y {b.id} se pisan`)
+					end
+				end
+			end,
+
+			["los puntos de interés no pisan la plaza ni los puentes"] = function()
+				local plazaReach = MapLayout.HUB_SCALE * 45 -- arenas del borde de la plaza, ya agrandadas
+				for _, landmark in MapLayout.landmarks() do
+					expect(landmark.center.Magnitude - landmark.radius > plazaReach, `{landmark.id} invade la plaza`)
+					for _, bridge in MapLayout.bridges() do
+						local gap = distanceToSegment(landmark.center, bridge.from, bridge.to)
+						expect(gap > landmark.radius + bridge.halfWidth, `{landmark.id} corta el puente {bridge.id}`)
+					end
+				end
+			end,
+
+			["cada punto de interés es plano y tiene su camino desde la plaza"] = function()
+				for _, landmark in MapLayout.landmarks() do
+					expect(isFlat(landmark.center.X, landmark.center.Y), `{landmark.id} no es plano`)
+					local connected = false
+					for _, road in MapLayout.roads() do
+						if (road.from - landmark.center.Unit * 74).Magnitude < 1 then
+							connected = true
+						end
+					end
+					expect(connected, `{landmark.id} no tiene camino desde la plaza`)
+				end
 			end,
 
 			["fuera de la isla el terreno está bajo el nivel del agua"] = function()

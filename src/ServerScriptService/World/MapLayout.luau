@@ -4,17 +4,19 @@
 	y franjas libres de decoración. No toca Instances, así que se prueba sin Studio.
 
 	Disposición (XZ, centro = 0,0):
-	  Isla grande (0, 0), radio 380: el mundo. Plaza de inicio con fuente en el centro, casas de modalidad
-	    al oeste, tienda al este, y el borde en tres escalones de hierba (terrazas) sobre el mar.
+	  Isla grande (0, 0), radio 380: el mundo. Plaza de inicio con fuente en el centro; en cada punta de la
+	    isla central hay un punto de interés grande sobre un círculo de arena: casas de modalidad al oeste,
+	    tienda al este, ruleta al norte y tableros de clasificación al sur. El borde baja en escalones de hierba.
 	  Cuatro islas satélite en las esquinas (±370, ±370), cada una unida a la grande por un puente de madera:
 	    Campo de Lobos (NE), Claro de Espíritus (NO), Cueva del Bruto (SE) y Aldea de Misiones (SO).
 	Las modalidades (oleadas y jefes) están en otra isla, fuera de este mapa (ver ModeLayout).
 ]]
 
-export type Kind = "hub" | "shop" | "modes" | "bosses"
+export type Kind = "hub" | "shop" | "modes" | "bosses" | "wheel" | "boards"
 export type Region = { id: string, kind: Kind, center: Vector2, radius: number }
 export type Corridor = { from: Vector2, to: Vector2, halfWidth: number }
 export type Surface = "Rock" | "Sand" | "Grass" | "Stone"
+export type Landmark = { id: string, kind: Kind, center: Vector2, radius: number, scale: number }
 export type Island = { id: string, name: string, center: Vector2, radius: number, rim: number }
 export type Bridge = { id: string, name: string, from: Vector2, to: Vector2, halfWidth: number }
 
@@ -66,10 +68,26 @@ for _, island in ISLANDS do
 	end
 end
 
--- Solo el hub tiene zona plana reservada, y es grande: la plaza se agranda con HUB_SCALE.
+-- Puntos de interés del hub, uno en cada punta de la isla central. Cada uno se construye en tamaño base y se
+-- agranda `scale` veces; `radius` es su círculo de arena plano (en studs del mundo). Miran a la plaza.
+local LANDMARK_DISTANCE = 205
+local LANDMARKS: { Landmark } = {
+	{ id = "modalidades", kind = "modes", center = Vector2.new(-LANDMARK_DISTANCE, 0), radius = 95, scale = 5 },
+	{ id = "tienda", kind = "shop", center = Vector2.new(LANDMARK_DISTANCE, 0), radius = 90, scale = 5 },
+	{ id = "ruleta", kind = "wheel", center = Vector2.new(0, -LANDMARK_DISTANCE), radius = 75, scale = 4 },
+	{ id = "tableros", kind = "boards", center = Vector2.new(0, LANDMARK_DISTANCE), radius = 80, scale = 4.5 },
+}
+
+-- Zonas planas reservadas: la plaza (grande, se agranda con HUB_SCALE) y el círculo de cada punto de interés.
 local REGIONS: { Region } = {
 	{ id = "hub", kind = "hub", center = Vector2.zero, radius = 115 },
 }
+for _, landmark in LANDMARKS do
+	table.insert(REGIONS, { id = landmark.id, kind = landmark.kind, center = landmark.center, radius = landmark.radius })
+	-- Camino de adoquín desde el borde de la plaza (radio 72) hasta el círculo de arena del punto de interés.
+	local dir = landmark.center.Unit
+	table.insert(ROADS, { from = dir * 74, to = landmark.center - dir * (landmark.radius * 0.75), halfWidth = 6 })
+end
 
 local CORRIDORS: { Corridor } = {}
 
@@ -99,6 +117,10 @@ end
 
 function MapLayout.islands(): { Island }
 	return ISLANDS
+end
+
+function MapLayout.landmarks(): { Landmark }
+	return LANDMARKS
 end
 
 function MapLayout.bridges(): { Bridge }
