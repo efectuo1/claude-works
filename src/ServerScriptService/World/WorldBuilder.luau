@@ -131,9 +131,9 @@ local function buildLighting()
 		a.Decay = Color3.fromRGB(170, 215, 255)
 	end)
 	Lighting.ClockTime = 14
-	Lighting.Brightness = 2.6
-	Lighting.Ambient = Color3.fromRGB(120, 110, 140)
-	Lighting.OutdoorAmbient = Color3.fromRGB(180, 170, 200)
+	Lighting.Brightness = 3
+	Lighting.Ambient = Color3.fromRGB(140, 130, 160)
+	Lighting.OutdoorAmbient = Color3.fromRGB(190, 185, 210)
 	-- Fog fuera de alcance: no se ve nada a menos que se acerque mucho.
 	Lighting.FogStart = 5000
 	Lighting.FogEnd = 100000
@@ -160,7 +160,7 @@ end
 
 -- Colores del terreno: se fijan por material antes de escribir voxels.
 local function paintTerrain(terrain: Terrain)
-	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(104, 190, 88))
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(96, 208, 84))
 	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(250, 220, 150))
 	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(150, 140, 178))
 	terrain:SetMaterialColor(Enum.Material.Cobblestone, Color3.fromRGB(175, 165, 150))

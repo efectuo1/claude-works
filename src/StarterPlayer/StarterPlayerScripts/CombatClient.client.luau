@@ -24,6 +24,33 @@ local MULTI_HIT_GAP = 0.25 -- debe coincidir con el servidor
 local player = Players.LocalPlayer
 
 -- Estilo común de la interfaz: esquinas redondeadas y un borde dorado suave.
+-- Bordes del kit de interfaz: contorno negro grueso en la caja y otro en el texto.
+local function addOutlines(instance: GuiObject)
+	local box = Instance.new("UIStroke")
+	box.Name = "Contorno"
+	box.Thickness = 3
+	box.Color = Color3.new(0, 0, 0)
+	box.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	box.Parent = instance
+	local text = Instance.new("UIStroke")
+	text.Name = "ContornoTexto"
+	text.Thickness = 2.5
+	text.Color = Color3.new(0, 0, 0)
+	text.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	text.Parent = instance
+end
+
+-- Aspecto del kit: color sólido vivo, esquinas redondas, letra gruesa y contornos negros.
+local function kitStyle(instance: TextLabel | TextButton, radius: number, fill: Color3)
+	instance.BackgroundColor3 = fill
+	instance.BackgroundTransparency = 0.05
+	instance.Font = Enum.Font.GothamBlack
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = instance
+	addOutlines(instance)
+end
+
 local function polish(instance: GuiObject, radius: number, strokeColor: Color3?)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, radius)
@@ -117,7 +144,7 @@ statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.Text = "Busca un mob"
 statusLabel.Parent = gui
 
-polish(statusLabel, 14)
+kitStyle(statusLabel, 14, Color3.fromRGB(22, 150, 175))
 local statusLimit = Instance.new("UISizeConstraint")
 statusLimit.MinSize = Vector2.new(180, 28)
 statusLimit.Parent = statusLabel
@@ -137,17 +164,18 @@ abilityToggle.Name = "AbilityToggle"
 abilityToggle.AnchorPoint = Vector2.new(0.5, 1)
 abilityToggle.Position = UDim2.fromScale(0.5, 0.985)
 abilityToggle.Size = UDim2.fromScale(0.14, 0.04)
-abilityToggle.BackgroundColor3 = Color3.fromRGB(12, 14, 24)
-abilityToggle.BackgroundTransparency = 0.22
+abilityToggle.BackgroundColor3 = Color3.fromRGB(140, 70, 230)
+abilityToggle.BackgroundTransparency = 0.05
 abilityToggle.BorderSizePixel = 0
 abilityToggle.AutoButtonColor = true
-abilityToggle.Font = Enum.Font.GothamBold
+abilityToggle.Font = Enum.Font.GothamBlack
 abilityToggle.TextColor3 = Color3.fromRGB(240, 243, 252)
 abilityToggle.TextScaled = true
 abilityToggle.Text = "HABILIDADES [+]"
 local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 10)
 toggleCorner.Parent = abilityToggle
+addOutlines(abilityToggle)
 local toggleLimit = Instance.new("UISizeConstraint")
 toggleLimit.MinSize = Vector2.new(120, 32)
 toggleLimit.Parent = abilityToggle
@@ -353,7 +381,7 @@ if firstQuestId ~= nil then
 	questButton.Text = `Misión: {Quests[questId].title}`
 	questButton.Parent = gui
 
-	polish(questButton, 12, Color3.fromRGB(150, 255, 150))
+	kitStyle(questButton, 12, Color3.fromRGB(255, 175, 30))
 local questLimit = Instance.new("UISizeConstraint")
 	questLimit.MinSize = Vector2.new(MIN_TOUCH_SIZE * 2, MIN_TOUCH_SIZE)
 	questLimit.Parent = questButton

@@ -688,7 +688,14 @@ function M.hud(parent, cfg)
 	for i, d in ipairs(list) do
 		shadow(s, "Tile" .. d.label, 0, (i - 1) * STEP, TILE, 110, 16, 2)
 		local b = button(s, "Tile" .. d.label, 0, (i - 1) * STEP, TILE, 110, 16, d.color or M.COLOR.hudBlue, 3, { action = "open", offer = d.opens, lip = 6, studs = 0.72 })
-		art(b, "Icon", d.icon, TILE / 2, 40, 86, b.ZIndex + 1)
+		if d.glyph ~= nil and d.icon == nil then
+			-- Sin imagen: un emoji grande sobre una insignia redonda translúcida, para que cada botón se distinga.
+			local badge = new("Frame", { Name = "Badge", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(TILE / 2, 40), Size = UDim2.fromOffset(72, 72), BackgroundColor3 = WHITE, BackgroundTransparency = 0.72, ZIndex = b.ZIndex + 1 }, b)
+			round(badge, 36)
+			new("TextLabel", { Name = "Glyph", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1), Text = d.glyph, TextSize = 50, Font = Enum.Font.GothamBold, TextColor3 = WHITE, ZIndex = b.ZIndex + 2 }, badge)
+		else
+			art(b, "Icon", d.icon, TILE / 2, 40, 86, b.ZIndex + 1)
+		end
 		text(b, "Label", d.label, TILE / 2, 85, 21, b.ZIndex + 2)   -- one size and height on every square, so the rail reads as a set
 		if d.tag then
 			local t = rect(b, "Tag", TILE - 46, -12, 58, 26, 8, b.ZIndex + 3, hex("FF1F2A")); ink(t, 3); t:SetAttribute("Wiggle", 0)

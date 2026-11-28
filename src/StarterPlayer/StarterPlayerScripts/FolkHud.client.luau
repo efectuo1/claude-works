@@ -460,24 +460,30 @@ addSection("FolkFrutas", "Frutas y jutsus", "Por ahora combates con las habilida
 addSection("FolkInicio", "Inicio", "Bienvenido. Mata zombis para ganar oro y gemas.\nEntra al portal de oleadas cuando quieras un reto.\nAbre la tienda para cambiar oro por gemas.")
 addSection("FolkAjustes", "Ajustes", "Los ajustes de sonido y gráficos llegarán en una próxima parte.")
 
+-- Botón del raíl con una imagen subida (UiAssets) o, si falta, un emoji sobre una insignia: así ningún botón es una estrella igual a las demás.
+local function railButton(label: string, key: string, glyph: string, color: any, opens: string): { [string]: any }
+	local image = UiAssets.get(key)
+	return { label = label, icon = image, glyph = if image == nil then glyph else nil, color = color, opens = opens }
+end
+
 local left = M.hud(pg, {
 	name = "FolkHudLeft",
 	buttons = {
 		{ label = "TIENDA", icon = M.ART.shop, color = M.COLOR.hudShop, opens = "FolkTienda" },
 		{ label = "RANGO", icon = M.ART.rebirth, color = M.COLOR.hudPurple, opens = "FolkRango" },
-		{ label = "MEJORAS", icon = UiAssets.get("mejoras") or M.ART.star, color = M.COLOR.lime, opens = "FolkMejoras" },
-		{ label = "ÍNDICE", icon = UiAssets.get("indice") or M.ART.star, color = M.COLOR.hudBlue, opens = "FolkIndice" },
-			{ label = "MOCHILA", icon = UiAssets.get("mochila") or M.ART.star, color = M.COLOR.amber, opens = "FolkMochila" },
+		railButton("MEJORAS", "mejoras", "⚡", M.COLOR.lime, "FolkMejoras"),
+		railButton("ÍNDICE", "indice", "📖", M.COLOR.hudBlue, "FolkIndice"),
+		railButton("MOCHILA", "mochila", "🎒", M.COLOR.amber, "FolkMochila"),
 	},
 })
 local right = M.hud(pg, {
 	name = "FolkHudRight",
 	buttons = {
-		{ label = "FRUTAS", icon = UiAssets.get("frutas") or M.ART.star, color = M.COLOR.orange, opens = "FolkFrutas" },
-		{ label = "MODOS", icon = UiAssets.get("modos") or M.ART.star, color = M.COLOR.purple, opens = "FolkModos" },
+		railButton("FRUTAS", "frutas", "🍎", M.COLOR.orange, "FolkFrutas"),
+		railButton("MODOS", "modos", "⚔️", M.COLOR.purple, "FolkModos"),
 		{ label = "PREMIOS", icon = M.ART.gift, color = M.COLOR.amber, opens = "FolkPremios" },
-		{ label = "INICIO", icon = UiAssets.get("inicio") or M.ART.star, color = M.COLOR.pink, opens = "FolkInicio" },
-		{ label = "AJUSTES", icon = UiAssets.get("ajustes") or M.ART.star, color = M.COLOR.crimson, opens = "FolkAjustes" },
+		railButton("INICIO", "inicio", "🏠", M.COLOR.pink, "FolkInicio"),
+		railButton("AJUSTES", "ajustes", "⚙️", M.COLOR.crimson, "FolkAjustes"),
 	},
 })
 right.Root.AnchorPoint = Vector2.new(1, 0.5)
@@ -535,7 +541,7 @@ H.text(statsCard, "Gems", "Gemas x1", 22, 102, 28, 4, nil, "left")
 
 -- Monedas: arriba a la derecha, ámbar con borde negro.
 local waveLabel = H.text(design, "Oleada", "", 960, 214, 40, 12)
-local walletCard = H.rect(design, "Monedas", 1568, 236, 330, 104, 18, 2) -- y=236: separada del botón de misión
+local walletCard = H.rect(design, "Monedas", 1648, 236, 250, 104, 18, 2) -- y=236: separada del botón de misión
 H.grad(walletCard, M.COLOR.amber[1], M.COLOR.amber[3])
 H.ink(walletCard, 4)
 
@@ -559,11 +565,18 @@ end
 local goldCoin = H.rect(walletCard, "IconoOro", 16, 14, 42, 42, 21, 3, M.COLOR.gold[1])
 H.grad(goldCoin, M.COLOR.gold[1], M.COLOR.gold[3])
 H.ink(goldCoin, 3)
+local goldInner = H.rect(goldCoin, "Aro", 8, 8, 26, 26, 13, 4, M.COLOR.gold[3])
+H.grad(goldInner, M.COLOR.gold[3], M.COLOR.gold[1])
+H.text(goldCoin, "Signo", "$", 21, 21, 24, 5)
 H.text(walletCard, "Oro", "0", 72, 35, 34, 4, nil, "left")
 
-local gemCoin = H.rect(walletCard, "IconoGemas", 16, 60, 42, 42, 21, 3, M.COLOR.green[1])
+-- La gema es un cuadrado girado 45° con un brillo: se distingue de un vistazo de la moneda.
+local gemCoin = H.rect(walletCard, "IconoGemas", 22, 66, 30, 30, 6, 3, M.COLOR.green[1])
+gemCoin.Rotation = 45
 H.grad(gemCoin, M.COLOR.green[1], M.COLOR.green[3])
 H.ink(gemCoin, 3)
+local shine = H.rect(gemCoin, "Brillo", 5, 5, 9, 9, 3, 4, Color3.new(1, 1, 1))
+shine.BackgroundTransparency = 0.35
 coinImage(goldCoin, "coin")
 coinImage(gemCoin, "gem")
 H.text(walletCard, "Gemas", "0", 72, 81, 34, 4, nil, "left")
