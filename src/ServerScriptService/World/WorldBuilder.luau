@@ -196,8 +196,13 @@ local function buildDecor()
 
 	-- Árboles de copa redonda: tronco marrón y tres bolas de verde que no bloquean a los mobs.
 	local CANOPY = { Color3.fromRGB(70, 160, 80), Color3.fromRGB(45, 135, 75), Color3.fromRGB(115, 195, 95) }
+	-- El hub queda despejado: ningún árbol de la isla entra en este radio alrededor del centro.
+	local HUB_TREE_CLEARANCE = 110
 	for i = 1, 260 do
 		local p = randomPoint(6)
+		while p.Magnitude < HUB_TREE_CLEARANCE do
+			p = randomPoint(6)
+		end
 		local base = surface(p.X, p.Y)
 		local trunkHeight = rng:NextNumber(8, 11)
 		local trunk = Instance.new("Part")

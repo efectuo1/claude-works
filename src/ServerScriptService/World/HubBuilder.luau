@@ -36,10 +36,16 @@ local STONE_COLORS = {
 	Color3.fromRGB(255, 190, 120),
 	Color3.fromRGB(170, 220, 255),
 }
-local FOUNTAIN_STONE = Color3.fromRGB(120, 150, 185)
-local WATER_COLOR = Color3.fromRGB(120, 200, 255)
-local WOOD = Color3.fromRGB(205, 140, 80)
+local FOUNTAIN_BLUE = Color3.fromRGB(60, 130, 235)
+local FOUNTAIN_BLUE_DARK = Color3.fromRGB(35, 90, 200)
+local WATER_COLOR = Color3.fromRGB(120, 220, 255)
+local WOOD = Color3.fromRGB(240, 210, 160) -- madera clara, como en la referencia
 local ROOF = Color3.fromRGB(225, 55, 55)
+local TERRACE_GREENS = {
+	Color3.fromRGB(95, 225, 95),
+	Color3.fromRGB(70, 190, 80),
+	Color3.fromRGB(120, 240, 105),
+}
 local DOOR = Color3.fromRGB(120, 70, 40)
 local TREE_TRUNK = Color3.fromRGB(150, 90, 50)
 local TREE_LEAVES = {
@@ -141,8 +147,9 @@ local function cabin(parent: Instance, name: string, position: Vector3, facing: 
 	part(parent, `{name}Puerta`, Vector3.new(1.6, 3, 0.3) * s, cf * CFrame.new(0, 1.5 * s, 3.05 * s), DOOR, Enum.Material.Wood)
 	part(parent, `{name}Ventana`, Vector3.new(1.4, 1.4, 0.2) * s, cf * CFrame.new(-2 * s, 3 * s, 3.05 * s), Color3.fromRGB(255, 240, 180), Enum.Material.Neon)
 	part(parent, `{name}Ventana`, Vector3.new(1.4, 1.4, 0.2) * s, cf * CFrame.new(2 * s, 3 * s, 3.05 * s), Color3.fromRGB(255, 240, 180), Enum.Material.Neon)
-	part(parent, `{name}TejadoA`, Vector3.new(6.6, 0.6, 4.2) * s, cf * CFrame.new(0, 6.9 * s, -2.1 * s) * CFrame.Angles(math.rad(-35), 0, 0), ROOF)
-	part(parent, `{name}TejadoB`, Vector3.new(6.6, 0.6, 4.2) * s, cf * CFrame.new(0, 6.9 * s, 2.1 * s) * CFrame.Angles(math.rad(35), 0, 0), ROOF)
+	-- Tejado en A: dos faldones más empinados (42°) que se juntan en la cumbre.
+	part(parent, `{name}TejadoA`, Vector3.new(6.6, 0.6, 4.6) * s, cf * CFrame.new(0, 7.2 * s, -2.2 * s) * CFrame.Angles(math.rad(-42), 0, 0), ROOF)
+	part(parent, `{name}TejadoB`, Vector3.new(6.6, 0.6, 4.6) * s, cf * CFrame.new(0, 7.2 * s, 2.2 * s) * CFrame.Angles(math.rad(42), 0, 0), ROOF)
 	-- Devuelve el centro de la puerta, donde se coloca el pad o el cartel.
 	return (cf * CFrame.new(0, 0, 3.05 * s)).Position
 end
@@ -206,15 +213,47 @@ local function road(hub: Instance, a: Vector2, b: Vector2, heightAt: HeightAt)
 	part(hub, "Camino", Vector3.new(4, 0.3, delta.Magnitude), cf, ROAD, Enum.Material.Cobblestone)
 end
 
+-- Fuente azul de cinco pisos: cada piso es un disco de piedra más estrecho que el de abajo,
+-- con una lámina de agua encima. Un pilar central la sostiene y un chorro sale por arriba.
+local FOUNTAIN_TIERS = { 10, 7.8, 5.8, 4.0, 2.4 }
 local function fountain(hub: Instance, center: Vector3)
-	flatDisc(hub, "FuenteEscalon", 9, 0.6, center + Vector3.new(0, 0.3, 0), FOUNTAIN_STONE, Enum.Material.Slate)
-	flatDisc(hub, "FuenteCuenco", 7, 1.2, center + Vector3.new(0, 1.2, 0), FOUNTAIN_STONE, Enum.Material.Marble)
-	flatDisc(hub, "FuenteAguaBaja", 5.6, 0.3, center + Vector3.new(0, 1.9, 0), WATER_COLOR, Enum.Material.Neon)
-	part(hub, "FuentePilar", Vector3.new(1.4, 4.4, 1.4), CFrame.new(center + Vector3.new(0, 4.2, 0)), FOUNTAIN_STONE, Enum.Material.Marble)
-	flatDisc(hub, "FuenteCuencoAlto", 3.6, 0.9, center + Vector3.new(0, 5.2, 0), FOUNTAIN_STONE, Enum.Material.Marble)
-	flatDisc(hub, "FuenteAguaAlta", 2.9, 0.3, center + Vector3.new(0, 5.8, 0), WATER_COLOR, Enum.Material.Neon)
-	flatDisc(hub, "FuenteCopa", 1.6, 0.5, center + Vector3.new(0, 7.6, 0), FOUNTAIN_STONE, Enum.Material.Marble)
-	emitter(hub, center + Vector3.new(0, 8.4, 0), WATER_COLOR, 12, 4, 1.4, 25)
+	local count = #FOUNTAIN_TIERS
+	for index, radius in FOUNTAIN_TIERS do
+		local base = 0.4 + (index - 1) * 1.8
+		flatDisc(hub, `FuentePiso{index}`, radius, 1, center + Vector3.new(0, base + 0.5, 0), if index % 2 == 1 then FOUNTAIN_BLUE else FOUNTAIN_BLUE_DARK, Enum.Material.Marble)
+		flatDisc(hub, `FuenteAgua{index}`, radius - 1.2, 0.25, center + Vector3.new(0, base + 1.05, 0), WATER_COLOR, Enum.Material.Neon)
+	end
+	local top = 0.4 + (count - 1) * 1.8 + 1.2
+	part(hub, "FuentePilar", Vector3.new(1.2, top - 1.2, 1.2), CFrame.new(center + Vector3.new(0, (top + 1.2) / 2, 0)), FOUNTAIN_BLUE_DARK, Enum.Material.Marble)
+	emitter(hub, center + Vector3.new(0, top + 1.4, 0), WATER_COLOR, 14, 5, 1.6, 22)
+end
+
+-- Terrazas verdes en el borde del hub: tres anillos de bloques que bajan hacia fuera,
+-- como escalones de hierba. Cada bloque va tangente al círculo y se apoya en la superficie real.
+local TERRACES = {
+	{ radius = 48, rise = 2.4 }, -- la más alta, la de dentro
+	{ radius = 53, rise = 1.4 },
+	{ radius = 58, rise = 0.5 }, -- la más baja, la de fuera
+}
+local function terraces(hub: Instance, heightAt: HeightAt)
+	local depth = 5
+	for level, ring in TERRACES do
+		local count = math.floor(2 * math.pi * ring.radius / 6.2)
+		local width = 2 * math.pi * ring.radius / count * 1.04
+		local color = TERRACE_GREENS[level]
+		for index = 0, count - 1 do
+			local angle = index * 2 * math.pi / count
+			local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+			local x = dir.X * ring.radius
+			local z = dir.Z * ring.radius
+			local top = heightAt(x, z) + ring.rise
+			local size = Vector3.new(width, ring.rise + 2, depth)
+			local center = Vector3.new(x, top - size.Y / 2, z)
+			-- Yaw que deja el lado largo (X) tangente al círculo.
+			local yaw = -angle - math.pi / 2
+			part(hub, `Terraza{level}`, size, CFrame.new(center) * CFrame.Angles(0, yaw, 0), color, Enum.Material.Grass)
+		end
+	end
 end
 
 -- Zonas ocupadas por edificios: ni árboles ni setos dentro.
@@ -268,14 +307,15 @@ function HubBuilder.build(heightAt: HeightAt)
 		local angle = math.rad(index * 60)
 		flowerBed(hub, center + Vector3.new(math.cos(angle) * 21, 0.5, math.sin(angle) * 21), index)
 	end
-	-- Círculos grandes de arena con piedras encima, como en la referencia (fuera de casas, tienda y ruleta).
-	for index, angle in { math.rad(60), math.rad(300), math.rad(180) } do
-		local distance = if index == 3 then 44 else 42
-		local spot = center + Vector3.new(math.cos(angle) * distance, 0.3, math.sin(angle) * distance)
-		flatDisc(hub, "ArenaGrande", 10, 0.3, spot, SAND, Enum.Material.Sand)
+	-- Círculos grandes de arena con piedras encima, como en la referencia. Van en el borde de la plaza,
+	-- entre las casas, la tienda y las terrazas (30°, 90° y 330°).
+	for _, degrees in { 30, 90, 330 } do
+		local angle = math.rad(degrees)
+		local spot = center + Vector3.new(math.cos(angle) * 36, 0.3, math.sin(angle) * 36)
+		flatDisc(hub, "ArenaGrande", 9, 0.3, spot, SAND, Enum.Material.Sand)
 		for stone = 0, 5 do
 			local a = stone * math.pi / 3
-			flatDisc(hub, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 5, 0.4, math.sin(a) * 5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
+			flatDisc(hub, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
 		end
 	end
 	for index = 0, 15 do
@@ -324,13 +364,16 @@ function HubBuilder.build(heightAt: HeightAt)
 	shopPrompt.RequiresLineOfSight = false
 	shopPrompt.Parent = shopPad
 
-	-- Ruleta al norte: disco vertical sobre poste, con el eje hacia la plaza.
+	-- Ruleta grande al norte: disco vertical de 14 studs sobre un poste alto, con el eje hacia la plaza.
+	local WHEEL_RADIUS = 7
 	local wheelBase = Vector3.new(0, heightAt(0, WHEEL_Z), WHEEL_Z)
-	part(hub, "RuletaPoste", Vector3.new(1, 4, 1), CFrame.new(wheelBase + Vector3.new(0, 2, 0)), POST_COLOR, Enum.Material.Metal)
-	local wheel = part(hub, "Ruleta", Vector3.new(1.2, 9, 9), CFrame.new(wheelBase + Vector3.new(0, 6.5, 0)) * CFrame.Angles(0, math.rad(90), 0), WHEEL_COLOR, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-	for index = 1, 4 do
-		local angle = math.rad(index * 90)
-		part(hub, "RuletaSector", Vector3.new(1.1, 1.2, 1.2), wheel.CFrame * CFrame.new(0, math.sin(angle) * 3.6, math.cos(angle) * 3.6), STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
+	local wheelHeight = 10
+	part(hub, "RuletaPoste", Vector3.new(1.2, wheelHeight, 1.2), CFrame.new(wheelBase + Vector3.new(0, wheelHeight / 2, 0)), POST_COLOR, Enum.Material.Metal)
+	local wheel = part(hub, "Ruleta", Vector3.new(1.2, WHEEL_RADIUS * 2, WHEEL_RADIUS * 2), CFrame.new(wheelBase + Vector3.new(0, wheelHeight + 1, 0)) * CFrame.Angles(0, math.rad(90), 0), WHEEL_COLOR, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	-- Ocho sectores de colores alrededor del borde, como en la referencia.
+	for index = 0, 7 do
+		local angle = math.rad(index * 45)
+		part(hub, "RuletaSector", Vector3.new(1.4, 1.6, 1.6), wheel.CFrame * CFrame.new(0, math.sin(angle) * (WHEEL_RADIUS - 0.4), math.cos(angle) * (WHEEL_RADIUS - 0.4)), STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
 	end
 
 	-- Tableros de clasificación al sur, de cara a la plaza.
@@ -356,10 +399,10 @@ function HubBuilder.build(heightAt: HeightAt)
 		flatDisc(hub, "Parterre", 2, 0.3, position, Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
 
-	-- Árboles en el borde de la plaza, sin tapar edificios.
-	for index = 0, 17 do
-		local angle = math.rad(index * 20 + rng:NextNumber(-4, 4))
-		local radius = rng:NextNumber(33, 36)
+	-- Pocos árboles, solo en el borde exterior de las terrazas. Dentro del hub no hay árboles.
+	for index = 0, 7 do
+		local angle = math.rad(index * 45 + rng:NextNumber(-6, 6))
+		local radius = rng:NextNumber(74, 78)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
 		if not blocked(x, z) then
@@ -367,14 +410,16 @@ function HubBuilder.build(heightAt: HeightAt)
 		end
 	end
 
-	-- Setos en el anillo exterior: cierran la plaza como un islote.
-	for index = 0, 23 do
-		local angle = math.rad(index * 15 + rng:NextNumber(-3, 3))
-		local radius = rng:NextNumber(42, 46)
+	-- Setos redondos justo por fuera de las terrazas: cierran el hub como un islote verde.
+	for index = 0, 35 do
+		local angle = math.rad(index * 10 + rng:NextNumber(-2, 2))
+		local radius = rng:NextNumber(62, 65)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
 		bush(hub, Vector3.new(x, heightAt(x, z), z), rng)
 	end
+
+	terraces(hub, heightAt)
 
 	-- Luciérnagas repartidas por la plaza.
 	for index = 0, 7 do
