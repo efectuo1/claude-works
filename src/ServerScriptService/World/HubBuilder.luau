@@ -40,6 +40,12 @@ local FOUNTAIN_BLUE = Color3.fromRGB(60, 130, 235)
 local FOUNTAIN_BLUE_DARK = Color3.fromRGB(35, 90, 200)
 local WATER_COLOR = Color3.fromRGB(120, 220, 255)
 local WOOD = Color3.fromRGB(240, 210, 160) -- madera clara, como en la referencia
+local PLANK_DARK = Color3.fromRGB(190, 150, 100)
+local ROCK_COLORS = {
+	Color3.fromRGB(120, 105, 98),
+	Color3.fromRGB(140, 122, 112),
+	Color3.fromRGB(105, 95, 90),
+}
 local ROOF = Color3.fromRGB(225, 55, 55)
 local TERRACE_GREENS = {
 	Color3.fromRGB(95, 225, 95),
@@ -147,6 +153,12 @@ local function cabin(parent: Instance, name: string, position: Vector3, facing: 
 	part(parent, `{name}Puerta`, Vector3.new(1.6, 3, 0.3) * s, cf * CFrame.new(0, 1.5 * s, 3.05 * s), DOOR, Enum.Material.Wood)
 	part(parent, `{name}Ventana`, Vector3.new(1.4, 1.4, 0.2) * s, cf * CFrame.new(-2 * s, 3 * s, 3.05 * s), Color3.fromRGB(255, 240, 180), Enum.Material.Neon)
 	part(parent, `{name}Ventana`, Vector3.new(1.4, 1.4, 0.2) * s, cf * CFrame.new(2 * s, 3 * s, 3.05 * s), Color3.fromRGB(255, 240, 180), Enum.Material.Neon)
+	-- Tablones: tres franjas horizontales oscuras en la fachada y en el fondo, como en la referencia.
+	for _, zSign in { 1, -1 } do
+		for _, y in { 1.4, 2.8, 4.2 } do
+			part(parent, `{name}Tablon`, Vector3.new(6.1, 0.18, 0.2) * s, cf * CFrame.new(0, y * s, zSign * 3.06 * s), PLANK_DARK, Enum.Material.Wood)
+		end
+	end
 	-- Tejado en A: dos faldones más empinados (42°) que se juntan en la cumbre.
 	part(parent, `{name}TejadoA`, Vector3.new(6.6, 0.6, 4.6) * s, cf * CFrame.new(0, 7.2 * s, -2.2 * s) * CFrame.Angles(math.rad(-42), 0, 0), ROOF)
 	part(parent, `{name}TejadoB`, Vector3.new(6.6, 0.6, 4.6) * s, cf * CFrame.new(0, 7.2 * s, 2.2 * s) * CFrame.Angles(math.rad(42), 0, 0), ROOF)
@@ -253,6 +265,24 @@ local function terraces(hub: Instance, heightAt: HeightAt)
 			local yaw = -angle - math.pi / 2
 			part(hub, `Terraza{level}`, size, CFrame.new(center) * CFrame.Angles(0, yaw, 0), color, Enum.Material.Grass)
 		end
+	end
+end
+
+-- Acantilado de roca gris-marrón justo por fuera de las terrazas, como en la referencia.
+-- Bloques irregulares de altura variable que sobresalen del suelo y le dan volumen a la isla.
+local function cliff(hub: Instance, heightAt: HeightAt)
+	local radius = 63
+	local count = math.floor(2 * math.pi * radius / 5.5)
+	local width = 2 * math.pi * radius / count * 1.1
+	for index = 0, count - 1 do
+		local angle = index * 2 * math.pi / count
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local rise = 1.2 + (index % 3) * 0.6
+		local top = heightAt(x, z) + rise
+		local size = Vector3.new(width, 6, 4.5)
+		local center = Vector3.new(x, top - 3, z)
+		part(hub, "Roca", size, CFrame.new(center) * CFrame.Angles(0, -angle - math.pi / 2, 0), ROCK_COLORS[index % #ROCK_COLORS + 1], Enum.Material.Slate)
 	end
 end
 
@@ -386,9 +416,13 @@ function HubBuilder.build(heightAt: HeightAt)
 	end
 
 	-- Gemas de colores en un montón al suroeste.
+	-- Dos filas de gemas (catorce en total), más densas que antes, como el montón de la referencia.
 	local gemBase = Vector3.new(-30, heightAt(-30, 30), 30)
-	for index, color in GEM_COLORS do
-		local offset = Vector3.new((index - 3) * 1.6, 1 + (index % 2) * 0.8, rng:NextNumber(-0.5, 0.5))
+	for index = 0, 13 do
+		local color = GEM_COLORS[index % #GEM_COLORS + 1]
+		local row = index // 7
+		local column = index % 7
+		local offset = Vector3.new((column - 3) * 1.8, 1 + row * 1.6 + (column % 2) * 0.5, row * 2.2 + rng:NextNumber(-0.3, 0.3))
 		part(hub, "Gema", Vector3.new(2, 2, 2), CFrame.new(gemBase + offset), color, Enum.Material.Neon, Enum.PartType.Ball)
 	end
 
@@ -410,16 +444,17 @@ function HubBuilder.build(heightAt: HeightAt)
 		end
 	end
 
-	-- Setos redondos justo por fuera de las terrazas: cierran el hub como un islote verde.
+	-- Setos redondos por fuera del acantilado: cierran el hub como un islote verde.
 	for index = 0, 35 do
 		local angle = math.rad(index * 10 + rng:NextNumber(-2, 2))
-		local radius = rng:NextNumber(62, 65)
+		local radius = rng:NextNumber(70, 73)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
 		bush(hub, Vector3.new(x, heightAt(x, z), z), rng)
 	end
 
 	terraces(hub, heightAt)
+	cliff(hub, heightAt)
 
 	-- Luciérnagas repartidas por la plaza.
 	for index = 0, 7 do
