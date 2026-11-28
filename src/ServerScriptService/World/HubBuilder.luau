@@ -64,6 +64,18 @@ local POST_COLOR = Color3.fromRGB(90, 90, 110)
 
 type HeightAt = (x: number, z: number) -> number
 
+-- Superficie real del terreno en (x, z), medida con un raycast. Si no hay terreno, usa la altura calculada.
+local function surfaceY(x: number, z: number, fallback: number): number
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	local hit = workspace:Raycast(Vector3.new(x, 80, z), Vector3.new(0, -160, 0), params)
+	if hit ~= nil then
+		return hit.Position.Y
+	end
+	return fallback
+end
+
 -- Pieza ancla: caja, esfera o cilindro. Todas quedan ancladas y con color plano.
 local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?): Part
 	local piece = Instance.new("Part")
@@ -223,6 +235,11 @@ local function blocked(x: number, z: number): boolean
 end
 
 function HubBuilder.build(heightAt: HeightAt)
+	-- Todo el hub usa la superficie medida, no la altura calculada (ver surfaceY).
+	local calculated = heightAt
+	heightAt = function(x: number, z: number): number
+		return surfaceY(x, z, calculated(x, z))
+	end
 	local previous = workspace:FindFirstChild("Hub")
 	if previous ~= nil then
 		previous:Destroy()

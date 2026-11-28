@@ -24,6 +24,19 @@ local MAX_Y = 24 -- por encima de la tierra más alta (~15)
 local SPAWN_XZ = MapLayout.spawnPoints()
 local height = MapLayout.height
 
+-- Altura real de la superficie del terreno. El terreno se escribe en voxels de 4 studs, así que la
+-- altura calculada puede quedar unos studs por debajo: decoración y spawns se colocan con un raycast.
+local function surface(x: number, z: number): number
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { workspace.Terrain }
+	local hit = workspace:Raycast(Vector3.new(x, 80, z), Vector3.new(0, -160, 0), params)
+	if hit ~= nil then
+		return hit.Position.Y
+	end
+	return height(x, z)
+end
+
 local SURFACE: { [string]: Enum.Material } = {
 	Rock = Enum.Material.Rock,
 	Sand = Enum.Material.Sand,
@@ -153,7 +166,7 @@ local function buildSpawnLocation()
 	-- Pad pequeño en la plaza, delante de la fuente: el punto de aparición de los jugadores.
 	spawn.Size = Vector3.new(6, 1, 6)
 	local start = MapLayout.HUB_SPAWN
-	spawn.Position = Vector3.new(start.X, height(start.X, start.Y) + 0.5, start.Y)
+	spawn.Position = Vector3.new(start.X, surface(start.X, start.Y) + 0.5, start.Y)
 	spawn.Anchored = true
 	spawn.Neutral = true
 	spawn.Color = Color3.fromRGB(255, 200, 80)
@@ -185,7 +198,7 @@ local function buildDecor()
 	local CANOPY = { Color3.fromRGB(70, 160, 80), Color3.fromRGB(45, 135, 75), Color3.fromRGB(115, 195, 95) }
 	for i = 1, 260 do
 		local p = randomPoint(6)
-		local base = height(p.X, p.Y)
+		local base = surface(p.X, p.Y)
 		local trunkHeight = rng:NextNumber(8, 11)
 		local trunk = Instance.new("Part")
 		trunk.Name = `Arbol_{i}`
@@ -223,7 +236,7 @@ local function buildDecor()
 		pool.Material = Enum.Material.Neon
 		pool.Color = Color3.fromRGB(255, 110, 40)
 		pool.Size = Vector3.new(0.3, 7, 7)
-		pool.CFrame = CFrame.new(p.X, height(p.X, p.Y) + 0.2, p.Y) * CFrame.Angles(0, 0, math.rad(90))
+		pool.CFrame = CFrame.new(p.X, surface(p.X, p.Y) + 0.2, p.Y) * CFrame.Angles(0, 0, math.rad(90))
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 120, 50)
 		light.Range = 16
@@ -272,7 +285,7 @@ local function buildFlowers()
 				flower.CanCollide = false
 				flower.CanQuery = false
 				flower.CanTouch = false
-				flower.Position = Vector3.new(p.X, height(p.X, p.Y) + 0.6, p.Y)
+				flower.Position = Vector3.new(p.X, surface(p.X, p.Y) + 0.6, p.Y)
 				flower.Parent = folder
 			end
 		end
@@ -300,7 +313,7 @@ local function buildBoulders()
 		boulder.Material = Enum.Material.Slate
 		boulder.Color = Color3.fromRGB(140, 128, 165)
 		boulder.Size = Vector3.new(size, size * rng:NextNumber(0.6, 0.9), size * rng:NextNumber(0.8, 1.1))
-		boulder.CFrame = CFrame.new(p.X, height(p.X, p.Y) + boulder.Size.Y / 2 - 0.5, p.Y) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+		boulder.CFrame = CFrame.new(p.X, surface(p.X, p.Y) + boulder.Size.Y / 2 - 0.5, p.Y) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 		boulder.Parent = folder
 	end
 	folder.Parent = workspace
@@ -326,7 +339,7 @@ local function buildZone()
 			local point = Instance.new("Part")
 			point.Name = name
 			point.Size = Vector3.new(2, 1, 2)
-			point.Position = Vector3.new(xz.X, height(xz.X, xz.Y) + 3, xz.Y)
+			point.Position = Vector3.new(xz.X, surface(xz.X, xz.Y) + 3, xz.Y)
 			point.Anchored = true
 			point.CanCollide = false
 			point.Transparency = 1
