@@ -34,14 +34,34 @@ return {
 				end
 			end,
 
-			["los spawns de mobs caen dentro de la isla, lejos del acantilado"] = function()
+			["los spawns de mobs caen dentro de una isla, lejos del acantilado"] = function()
 				for name, point in MapLayout.spawnPoints() do
-					expect(point.Magnitude < MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH, `{name} queda en el acantilado o en el mar`)
+					expect(MapLayout.onLand(point, 4), `{name} queda en el acantilado o en el mar`)
 				end
 			end,
 
+			["los spawns de mobs están en la isla del campo, no en el hub"] = function()
+				for name, point in MapLayout.spawnPoints() do
+					expect(point.X > 100, `{name} debe quedar fuera de la isla del hub`)
+				end
+			end,
+
+			["las dos islas están separadas por mar"] = function()
+				expect(MapLayout.height(115, 0) < MapLayout.SEA_LEVEL, "entre las islas debe haber agua")
+			end,
+
+			["el puente va de una meseta a la otra"] = function()
+				local bridge = MapLayout.BRIDGE
+				expect(MapLayout.onLand(bridge.from, 0), "el puente debe empezar sobre la meseta del hub")
+				expect(MapLayout.onLand(bridge.to, 0), "el puente debe acabar sobre la meseta del campo")
+			end,
+
+			["el puente no tiene decoración encima"] = function()
+				expect(not MapLayout.isClear(Vector2.new(72, 0), 0), "el paso del puente debe estar libre de decoración")
+			end,
+
 			["fuera de la isla el terreno está bajo el nivel del agua"] = function()
-				local far = Vector2.new(MapLayout.ISLAND_RADIUS + 40, 0)
+				local far = Vector2.new(0, -(MapLayout.ISLAND_RADIUS + 40))
 				expect(MapLayout.height(far.X, far.Y) < MapLayout.SEA_LEVEL, "el mar debe quedar bajo el nivel del agua")
 			end,
 

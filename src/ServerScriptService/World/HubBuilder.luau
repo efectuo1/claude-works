@@ -240,6 +240,11 @@ local function fountain(hub: Instance, center: Vector3)
 	emitter(hub, center + Vector3.new(0, top + 1.4, 0), WATER_COLOR, 14, 5, 1.6, 22)
 end
 
+-- Paso hacia el puente (este, eje X): sin terrazas, roca ni setos en esta franja.
+local function inGate(x: number, z: number): boolean
+	return x > 0 and math.abs(z) < 7
+end
+
 -- Terrazas verdes en el borde del hub: tres anillos de bloques que bajan hacia fuera,
 -- como escalones de hierba. Cada bloque va tangente al círculo y se apoya en la superficie real.
 local TERRACES = {
@@ -258,12 +263,14 @@ local function terraces(hub: Instance, heightAt: HeightAt)
 			local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
 			local x = dir.X * ring.radius
 			local z = dir.Z * ring.radius
-			local top = heightAt(x, z) + ring.rise
-			local size = Vector3.new(width, ring.rise + 2, depth)
-			local center = Vector3.new(x, top - size.Y / 2, z)
-			-- Yaw que deja el lado largo (X) tangente al círculo.
-			local yaw = -angle - math.pi / 2
-			part(hub, `Terraza{level}`, size, CFrame.new(center) * CFrame.Angles(0, yaw, 0), color, Enum.Material.Grass)
+			if not inGate(x, z) then
+				local top = heightAt(x, z) + ring.rise
+				local size = Vector3.new(width, ring.rise + 2, depth)
+				local center = Vector3.new(x, top - size.Y / 2, z)
+				-- Yaw que deja el lado largo (X) tangente al círculo.
+				local yaw = -angle - math.pi / 2
+				part(hub, `Terraza{level}`, size, CFrame.new(center) * CFrame.Angles(0, yaw, 0), color, Enum.Material.Grass)
+			end
 		end
 	end
 end
@@ -278,11 +285,13 @@ local function cliff(hub: Instance, heightAt: HeightAt)
 		local angle = index * 2 * math.pi / count
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		local rise = 1.2 + (index % 3) * 0.6
-		local top = heightAt(x, z) + rise
-		local size = Vector3.new(width, 6, 4.5)
-		local center = Vector3.new(x, top - 3, z)
-		part(hub, "Roca", size, CFrame.new(center) * CFrame.Angles(0, -angle - math.pi / 2, 0), ROCK_COLORS[index % #ROCK_COLORS + 1], Enum.Material.Slate)
+		if not inGate(x, z) then
+			local rise = 1.2 + (index % 3) * 0.6
+			local top = heightAt(x, z) + rise
+			local size = Vector3.new(width, 6, 4.5)
+			local center = Vector3.new(x, top - 3, z)
+			part(hub, "Roca", size, CFrame.new(center) * CFrame.Angles(0, -angle - math.pi / 2, 0), ROCK_COLORS[index % #ROCK_COLORS + 1], Enum.Material.Slate)
+		end
 	end
 end
 
@@ -360,6 +369,8 @@ function HubBuilder.build(heightAt: HeightAt)
 	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, -16), Vector2.new(HOUSE_X + PAD_OFFSET, 16), heightAt)
 	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, 0), Vector2.new(-4, 0), heightAt)
 	road(hub, Vector2.new(4, 0), Vector2.new(SHOP_X - 2, 0), heightAt)
+	-- Del lado este de la tienda hasta el arco del puente (el paso hacia los campos de mobs).
+	road(hub, Vector2.new(34, 0), Vector2.new(68, 0), heightAt)
 
 	-- Casas de modalidad al oeste, con la puerta hacia la fuente y un pad delante.
 	for _, mode in MODE_HOUSES do
@@ -433,13 +444,14 @@ function HubBuilder.build(heightAt: HeightAt)
 		flatDisc(hub, "Parterre", 2, 0.3, position, Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
 
-	-- Pocos árboles, solo en el borde exterior de las terrazas. Dentro del hub no hay árboles.
-	for index = 0, 7 do
-		local angle = math.rad(index * 45 + rng:NextNumber(-6, 6))
-		local radius = rng:NextNumber(74, 78)
+	-- Árboles de copa redonda en un anillo entre la plaza y las terrazas (30° de separación, desfasados
+	-- de las arenas para no pisarlas). La isla es compacta: no hay árboles fuera de este anillo.
+	for index = 0, 11 do
+		local angle = math.rad(index * 30 + 15)
+		local radius = rng:NextNumber(41, 43)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		if not blocked(x, z) then
+		if not blocked(x, z) and not inGate(x, z) then
 			tree(hub, Vector3.new(x, heightAt(x, z), z), rng)
 		end
 	end
@@ -450,8 +462,20 @@ function HubBuilder.build(heightAt: HeightAt)
 		local radius = rng:NextNumber(70, 73)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		bush(hub, Vector3.new(x, heightAt(x, z), z), rng)
+		if not inGate(x, z) then
+			bush(hub, Vector3.new(x, heightAt(x, z), z), rng)
+		end
 	end
+
+	-- Arco de entrada al puente del campo de mobs: dos postes, travesaño y cartel de cara a la plaza.
+	local archX = 66
+	local archBase = heightAt(archX, 0)
+	for _, side in { -1, 1 } do
+		part(hub, "ArcoPoste", Vector3.new(1.4, 11, 1.4), CFrame.new(archX, archBase + 5.5, side * 6.5), DOOR, Enum.Material.Wood)
+	end
+	part(hub, "ArcoTravesano", Vector3.new(1.8, 1.6, 15), CFrame.new(archX, archBase + 11, 0), DOOR, Enum.Material.Wood)
+	local archSign = part(hub, "ArcoCartel", Vector3.new(11, 3, 0.4), CFrame.new(archX - 1, archBase + 8.6, 0) * CFrame.Angles(0, math.rad(90), 0), BOARD_COLOR)
+	sign(archSign, "CAMPOS DE BRASA")
 
 	terraces(hub, heightAt)
 	cliff(hub, heightAt)

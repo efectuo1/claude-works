@@ -196,9 +196,9 @@ local function buildDecor()
 
 	-- Árboles de copa redonda: tronco marrón y tres bolas de verde que no bloquean a los mobs.
 	local CANOPY = { Color3.fromRGB(70, 160, 80), Color3.fromRGB(45, 135, 75), Color3.fromRGB(115, 195, 95) }
-	-- El hub queda despejado: ningún árbol de la isla entra en este radio alrededor del centro.
+	-- El hub queda despejado: sus árboles los pone HubBuilder. Los de aquí van solo en la isla del campo.
 	local HUB_TREE_CLEARANCE = 110
-	for i = 1, 260 do
+	for i = 1, 110 do
 		local p = randomPoint(6)
 		while p.Magnitude < HUB_TREE_CLEARANCE do
 			p = randomPoint(6)
@@ -231,8 +231,11 @@ local function buildDecor()
 		end
 	end
 
-	for i = 1, 16 do
+	for i = 1, 8 do
 		local p = randomPoint(10)
+		while p.Magnitude < HUB_TREE_CLEARANCE do
+			p = randomPoint(10)
+		end
 		local pool = Instance.new("Part")
 		pool.Name = `Brasa_{i}`
 		pool.Shape = Enum.PartType.Cylinder
@@ -268,13 +271,12 @@ local function buildFlowers()
 	local folder = Instance.new("Folder")
 	folder.Name = "Flores"
 	local rng = Random.new(21)
-	local reach = MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH - 20
+	local half = MapLayout.HALF_SIZE
 	local count = 0
-	for _ = 1, 160 do
-		local angle = rng:NextNumber(0, math.pi * 2)
-		local radius = rng:NextNumber(30, reach)
-		local center = Vector2.new(math.cos(angle), math.sin(angle)) * radius
-		if MapLayout.isClear(center, 8) then
+	for _ = 1, 400 do
+		local center = Vector2.new(rng:NextNumber(-half, half), rng:NextNumber(-half, half))
+		-- Solo en la isla del campo: el hub lleva sus propios macizos.
+		if center.Magnitude > 110 and MapLayout.isClear(center, 8) then
 			for _ = 1, rng:NextInteger(5, 9) do
 				local a2 = rng:NextNumber(0, math.pi * 2)
 				local r2 = rng:NextNumber(0, 4.5)
@@ -298,7 +300,8 @@ local function buildFlowers()
 	folder.Parent = workspace
 end
 
--- Rocas grandes sobre el borde de la meseta, justo antes del acantilado, como en la referencia.
+-- Rocas grandes sobre el borde de la meseta del campo, justo antes del acantilado.
+-- El hub no lleva: su borde son las terrazas y el acantilado de HubBuilder.
 local function buildBoulders()
 	if workspace:FindFirstChild("Rocas") ~= nil then
 		return
@@ -306,22 +309,96 @@ local function buildBoulders()
 	local folder = Instance.new("Folder")
 	folder.Name = "Rocas"
 	local rng = Random.new(55)
-	local inner = MapLayout.ISLAND_RADIUS - MapLayout.RIM_WIDTH
-	for i = 1, 90 do
-		local angle = rng:NextNumber(0, math.pi * 2)
-		local radius = rng:NextNumber(inner - 14, inner - 2)
-		local p = Vector2.new(math.cos(angle), math.sin(angle)) * radius
-		local size = rng:NextNumber(4, 9)
-		local boulder = Instance.new("Part")
-		boulder.Name = `Roca_{i}`
-		boulder.Anchored = true
-		boulder.Material = Enum.Material.Slate
-		boulder.Color = Color3.fromRGB(140, 128, 165)
-		boulder.Size = Vector3.new(size, size * rng:NextNumber(0.6, 0.9), size * rng:NextNumber(0.8, 1.1))
-		boulder.CFrame = CFrame.new(p.X, surface(p.X, p.Y) + boulder.Size.Y / 2 - 0.5, p.Y) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-		boulder.Parent = folder
+	local count = 0
+	for _, island in MapLayout.islands() do
+		if island.id ~= "hub" then
+			local inner = island.radius - island.rim
+			for _ = 1, 40 do
+				local angle = rng:NextNumber(0, math.pi * 2)
+				local radius = rng:NextNumber(inner - 12, inner - 2)
+				local p = island.center + Vector2.new(math.cos(angle), math.sin(angle)) * radius
+				local size = rng:NextNumber(4, 9)
+				-- Sin rocas en el paso del puente.
+				if (p - MapLayout.BRIDGE.to).Magnitude > 14 then
+					count += 1
+					local boulder = Instance.new("Part")
+					boulder.Name = `Roca_{count}`
+					boulder.Anchored = true
+					boulder.Material = Enum.Material.Slate
+					boulder.Color = Color3.fromRGB(140, 128, 165)
+					boulder.Size = Vector3.new(size, size * rng:NextNumber(0.6, 0.9), size * rng:NextNumber(0.8, 1.1))
+					boulder.CFrame = CFrame.new(p.X, surface(p.X, p.Y) + boulder.Size.Y / 2 - 0.5, p.Y) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+					boulder.Parent = folder
+				end
+			end
+		end
 	end
 	folder.Parent = workspace
+end
+
+-- Puente de madera sobre el mar, del hub a la isla del campo: tablero, tablones, barandillas y pilares.
+local BRIDGE_DECK = Color3.fromRGB(205, 150, 90)
+local BRIDGE_DARK = Color3.fromRGB(140, 95, 55)
+
+local function buildBridge()
+	if workspace:FindFirstChild("Puente") ~= nil then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "Puente"
+	local from2 = MapLayout.BRIDGE.from
+	local to2 = MapLayout.BRIDGE.to
+	local a = Vector3.new(from2.X, surface(from2.X, from2.Y) + 0.3, from2.Y)
+	local b = Vector3.new(to2.X, surface(to2.X, to2.Y) + 0.3, to2.Y)
+	local length = (b - a).Magnitude
+	local width = MapLayout.BRIDGE.halfWidth * 2
+	-- Eje del puente: -Z local apunta hacia b, así que el tablero mide `length` en Z.
+	local base = CFrame.lookAt((a + b) / 2, b)
+
+	local function piece(name: string, size: Vector3, offset: CFrame, color: Color3)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.Size = size
+		p.CFrame = base * offset
+		p.Color = color
+		p.Material = Enum.Material.Wood
+		p.Parent = model
+		return p
+	end
+
+	piece("Tablero", Vector3.new(width, 0.8, length), CFrame.new(0, -0.4, 0), BRIDGE_DECK)
+	local z = -length / 2 + 1.5
+	while z < length / 2 do
+		piece("Tablon", Vector3.new(width + 0.4, 0.2, 1.1), CFrame.new(0, 0.05, z), BRIDGE_DARK)
+		z += 3
+	end
+	for _, side in { -1, 1 } do
+		piece("Barandilla", Vector3.new(0.5, 0.5, length), CFrame.new(side * (width / 2 - 0.25), 2.4, 0), BRIDGE_DARK)
+		z = -length / 2 + 2
+		while z < length / 2 do
+			piece("Poste", Vector3.new(0.6, 2.6, 0.6), CFrame.new(side * (width / 2 - 0.25), 1.0, z), BRIDGE_DARK)
+			z += 6
+		end
+	end
+	-- Pilares hasta el fondo, cada 15 studs.
+	z = -length / 2 + 8
+	while z < length / 2 - 4 do
+		for _, side in { -1, 1 } do
+			local top = (base * CFrame.new(side * (width / 2 - 0.8), -0.8, z)).Position
+			local depth = top.Y - (MapLayout.SEA_FLOOR + 1)
+			local pillar = Instance.new("Part")
+			pillar.Name = "Pilar"
+			pillar.Anchored = true
+			pillar.Size = Vector3.new(1.2, depth, 1.2)
+			pillar.Position = top - Vector3.new(0, depth / 2, 0)
+			pillar.Color = BRIDGE_DARK
+			pillar.Material = Enum.Material.Wood
+			pillar.Parent = model
+		end
+		z += 15
+	end
+	model.Parent = workspace
 end
 
 local function buildZone()
@@ -479,6 +556,7 @@ function WorldBuilder.build(mobDefs: { [string]: Types.MobDef }): Result.Result<
 	allOk = step("decoración", buildDecor) and allOk
 	allOk = step("flores", buildFlowers) and allOk
 	allOk = step("rocas", buildBoulders) and allOk
+	allOk = step("puente", buildBridge) and allOk
 	allOk = step("zona", buildZone) and allOk
 	allOk = step("hub", function()
 		HubBuilder.build(height)

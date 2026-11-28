@@ -16,7 +16,7 @@ Importante: vuelve a construir el `.rbxlx` cada vez que cambies el proyecto. Si 
 
 1. Pulsa Play (F5) y mira la ventana de salida.
 2. Debe aparecer `[Tests] todas las suites pasaron`.
-3. El jugador aparece en el hub. Los zombis aparecen en las marcas de los campos, al oeste y al este del hub.
+3. El jugador aparece en el hub. Los zombis aparecen en la isla del campo, al este: cruza el puente de madera desde el arco "CAMPOS DE BRASA".
 4. Acércate a menos de 8 studs de un zombi para golpear con la habilidad de alcance corto.
 
 ## Combate
