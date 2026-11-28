@@ -147,8 +147,8 @@ local function buildLighting()
 	end)
 	ensure(Lighting, "ColorCorrectionEffect", function(cc)
 		local c = cc :: ColorCorrectionEffect
-		c.Saturation = 0.95
-		c.Contrast = 0.12
+		c.Saturation = 1.2
+		c.Contrast = 0.08
 		c.TintColor = Color3.fromRGB(255, 255, 255)
 	end)
 	ensure(Lighting, "SunRaysEffect", function(rays)

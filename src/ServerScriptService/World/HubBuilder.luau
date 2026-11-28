@@ -41,11 +41,6 @@ local PLANK_DARK = Color3.fromRGB(190, 150, 100)
 local ROOF = Color3.fromRGB(225, 55, 55)
 local DOOR = Color3.fromRGB(120, 70, 40)
 local TREE_TRUNK = Color3.fromRGB(150, 90, 50)
-local TREE_LEAVES = {
-	Color3.fromRGB(90, 230, 90),
-	Color3.fromRGB(60, 200, 120),
-	Color3.fromRGB(150, 240, 80),
-}
 local BUSH_COLORS = {
 	Color3.fromRGB(70, 210, 90),
 	Color3.fromRGB(120, 235, 80),
@@ -153,12 +148,69 @@ local function cabin(parent: Instance, name: string, position: Vector3, facing: 
 	return (cf * CFrame.new(0, 0, 3.05 * s)).Position
 end
 
--- Árbol de copa redonda en tres bolas.
+-- Árbol de copa redonda: tronco grueso y una copa de bolas de distinto tamaño, como en la referencia.
+local CANOPY = {
+	Color3.fromRGB(90, 230, 90),
+	Color3.fromRGB(60, 200, 120),
+	Color3.fromRGB(150, 240, 80),
+	Color3.fromRGB(40, 185, 115),
+}
 local function tree(parent: Instance, position: Vector3, rng: Random)
-	part(parent, "ArbolTronco", Vector3.new(4, 1.2, 1.2), CFrame.new(position + Vector3.new(0, 2, 0)) * CFrame.Angles(0, 0, math.rad(90)), TREE_TRUNK, Enum.Material.Wood, Enum.PartType.Cylinder)
-	local leaves = TREE_LEAVES[rng:NextInteger(1, #TREE_LEAVES)]
-	part(parent, "ArbolCopa", Vector3.new(6, 6, 6), CFrame.new(position + Vector3.new(0, 6, 0)), leaves, Enum.Material.Grass, Enum.PartType.Ball)
-	part(parent, "ArbolCopaAlta", Vector3.new(4, 4, 4), CFrame.new(position + Vector3.new(0, 9, 0)), leaves, Enum.Material.Grass, Enum.PartType.Ball)
+	local trunkHeight = rng:NextNumber(4, 5)
+	part(parent, "ArbolTronco", Vector3.new(trunkHeight, 1.6, 1.6), CFrame.new(position + Vector3.new(0, trunkHeight / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)), TREE_TRUNK, Enum.Material.Wood, Enum.PartType.Cylinder)
+	local leaves = CANOPY[rng:NextInteger(1, #CANOPY)]
+	local top = position + Vector3.new(0, trunkHeight, 0)
+	part(parent, "ArbolCopa", Vector3.new(7, 7, 7), CFrame.new(top + Vector3.new(0, 3.2, 0)), leaves, Enum.Material.Grass, Enum.PartType.Ball)
+	for k = 0, 3 do
+		local angle = k * math.pi / 2 + rng:NextNumber(-0.3, 0.3)
+		local size = rng:NextNumber(4, 5)
+		local offset = Vector3.new(math.cos(angle) * 2.6, rng:NextNumber(2.5, 4.5), math.sin(angle) * 2.6)
+		part(parent, "ArbolCopaLateral", Vector3.new(size, size, size), CFrame.new(top + offset), leaves, Enum.Material.Grass, Enum.PartType.Ball)
+	end
+end
+
+-- Pino en tres pisos de disco verde, más alegre que un cono plano.
+local PINE = {
+	Color3.fromRGB(40, 170, 110),
+	Color3.fromRGB(30, 150, 100),
+}
+local function pine(parent: Instance, position: Vector3, rng: Random)
+	local green = PINE[rng:NextInteger(1, #PINE)]
+	part(parent, "PinoTronco", Vector3.new(3, 1.3, 1.3), CFrame.new(position + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, 0, math.rad(90)), TREE_TRUNK, Enum.Material.Wood, Enum.PartType.Cylinder)
+	for tier = 0, 2 do
+		local radius = 3.8 - tier * 0.9
+		flatDisc(parent, "PinoPiso", radius, 1.6, position + Vector3.new(0, 3 + tier * 1.8, 0), green, Enum.Material.Grass)
+	end
+end
+
+-- Huella de pata: una almohadilla y cuatro dedos, planos sobre la arena. `angle` marca hacia dónde mira.
+local PAW_COLOR = Color3.fromRGB(150, 100, 60)
+local function pawPrint(parent: Instance, position: Vector3, angle: number)
+	flatDisc(parent, "Huella", 0.9, 0.12, position + Vector3.new(0, 0.1, 0), PAW_COLOR, Enum.Material.Sand)
+	for k = 0, 3 do
+		local toe = angle + (k - 1.5) * 0.45
+		local spot = position + Vector3.new(math.sin(toe), 0, math.cos(toe)) * 1.5
+		flatDisc(parent, "HuellaDedo", 0.35, 0.12, spot + Vector3.new(0, 0.1, 0), PAW_COLOR, Enum.Material.Sand)
+	end
+end
+
+-- Varias huellas repartidas en un anillo alrededor de `origin`, todas en la misma dirección de paso.
+local function pawPrints(parent: Instance, origin: Vector3, radius: number, count: number, rng: Random)
+	for index = 0, count - 1 do
+		local around = index * 2 * math.pi / count + rng:NextNumber(-0.2, 0.2)
+		local spot = origin + Vector3.new(math.cos(around) * radius, 0, math.sin(around) * radius)
+		pawPrint(parent, spot, around + math.pi / 2)
+	end
+end
+
+-- Racimo de gemas de colores sobre la arena, con giros distintos para que brillen en ángulos variados.
+local function gemCluster(parent: Instance, center: Vector3, rng: Random, count: number)
+	for index = 1, count do
+		local size = rng:NextNumber(1.2, 2.2)
+		local offset = Vector3.new(rng:NextNumber(-2.5, 2.5), size / 2 + (index % 3) * 0.2, rng:NextNumber(-2.5, 2.5))
+		local tilt = CFrame.Angles(math.rad(rng:NextNumber(0, 45)), math.rad(rng:NextNumber(0, 45)), 0)
+		part(parent, "Gema", Vector3.new(size, size, size), CFrame.new(center + offset) * tilt, GEM_COLORS[index % #GEM_COLORS + 1], Enum.Material.Neon)
+	end
 end
 
 -- Seto redondo del borde.
@@ -285,16 +337,26 @@ end
 
 -- Ruleta grande: disco vertical sobre un poste alto, con la cara hacia la plaza (+X) y un pedestal de piedra.
 local WHEEL_RADIUS = 7
+local WHEEL_SECTORS = {
+	Color3.fromRGB(255, 60, 60),
+	Color3.fromRGB(255, 220, 40),
+	Color3.fromRGB(60, 150, 255),
+	Color3.fromRGB(80, 230, 90),
+}
 local function buildWheel(model: Model, groundY: number)
 	local wheelHeight = 10
 	flatDisc(model, "RuletaBase", 6, 1, Vector3.new(0, groundY + 0.5, 0), Color3.fromRGB(190, 200, 215), Enum.Material.Marble)
 	part(model, "RuletaPoste", Vector3.new(1.2, wheelHeight, 1.2), CFrame.new(0, groundY + wheelHeight / 2, 0), POST_COLOR, Enum.Material.Metal)
 	-- El cilindro apunta a lo largo de X: sin girar, su cara mira a la plaza.
 	local wheel = part(model, "Ruleta", Vector3.new(1.2, WHEEL_RADIUS * 2, WHEEL_RADIUS * 2), CFrame.new(0, groundY + wheelHeight + 1, 0), WHEEL_COLOR, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-	for index = 0, 7 do
+	-- Cuatro diámetros de colores sobre la cara: la ruleta se lee a distancia como un disco de sectores.
+	for index = 0, 3 do
 		local angle = math.rad(index * 45)
-		part(model, "RuletaSector", Vector3.new(1.4, 1.6, 1.6), wheel.CFrame * CFrame.new(0.2, math.sin(angle) * (WHEEL_RADIUS - 0.4), math.cos(angle) * (WHEEL_RADIUS - 0.4)), STONE_COLORS[index % #STONE_COLORS + 1], Enum.Material.Neon, Enum.PartType.Ball)
+		part(model, "RuletaSector", Vector3.new(0.4, 1.6, WHEEL_RADIUS * 2 * 0.92), wheel.CFrame * CFrame.new(0.7, 0, 0) * CFrame.Angles(angle, 0, 0), WHEEL_SECTORS[index % #WHEEL_SECTORS + 1], Enum.Material.Neon)
 	end
+	-- Aro dorado detrás del disco y eje central.
+	part(model, "RuletaAro", Vector3.new(0.5, WHEEL_RADIUS * 2 + 1, WHEEL_RADIUS * 2 + 1), CFrame.new(0, groundY + wheelHeight + 1, 0), Color3.fromRGB(255, 200, 60), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	part(model, "RuletaEje", Vector3.new(1.6, 1.6, 1.6), CFrame.new(0.9, groundY + wheelHeight + 1, 0), Color3.fromRGB(255, 240, 150), Enum.Material.Neon, Enum.PartType.Ball)
 end
 
 -- Tres tableros de clasificación de cara a la plaza, y un montón de gemas de colores detrás, como en la referencia.
@@ -303,6 +365,7 @@ local function buildBoards(model: Model, groundY: number, rng: Random)
 	for _, info in boards do
 		part(model, "TableroPoste", Vector3.new(0.8, 6, 0.8), CFrame.new(0, groundY + 3, info.z), POST_COLOR, Enum.Material.Metal)
 		-- La cara con texto (-Z local) gira -90° para mirar a +X.
+		part(model, "MarcoTablero", Vector3.new(0.3, 4.9, 7.9), CFrame.new(-0.35, groundY + 7.5, info.z), Color3.fromRGB(255, 200, 60), Enum.Material.SmoothPlastic)
 		local board = part(model, "Clasificacion", Vector3.new(7, 4, 0.6), CFrame.new(0, groundY + 7.5, info.z) * CFrame.Angles(0, math.rad(-90), 0), BOARD_COLOR)
 		sign(board, info.text)
 	end
@@ -390,6 +453,7 @@ function HubBuilder.build(heightAt: HeightAt)
 		local angle = math.rad(degrees)
 		local spot = center + Vector3.new(math.cos(angle) * 36, 0.3, math.sin(angle) * 36)
 		flatDisc(plaza, "ArenaGrande", 9, 0.3, spot, SAND, Enum.Material.Sand)
+		pawPrints(plaza, spot, 5.5, 4, rng)
 		for stone = 0, 5 do
 			local a = stone * math.pi / 3
 			flatDisc(plaza, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 4.5, 0.4, math.sin(a) * 4.5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
@@ -404,6 +468,10 @@ function HubBuilder.build(heightAt: HeightAt)
 		flatDisc(plaza, "Parterre", 2, 0.3, center + Vector3.new(math.cos(angle) * 11, 0.5, math.sin(angle) * 11), Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
 	fountain(plaza, center)
+	-- Huellas en el anillo de la plaza y racimos de gemas en las esquinas, como en la referencia.
+	pawPrints(plaza, center, 24, 6, rng)
+	gemCluster(plaza, center + Vector3.new(-30, 0, 18), rng, 10)
+	gemCluster(plaza, center + Vector3.new(26, 0, -20), rng, 10)
 
 	-- Árboles de copa redonda en un anillo alrededor de la plaza y luciérnagas por encima.
 	for index = 0, 11 do
@@ -411,7 +479,12 @@ function HubBuilder.build(heightAt: HeightAt)
 		local radius = rng:NextNumber(41, 43)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		tree(plaza, Vector3.new(x, heightAt(x, z), z), rng)
+		local base = Vector3.new(x, heightAt(x, z), z)
+		if index % 3 == 2 then
+			pine(plaza, base, rng)
+		else
+			tree(plaza, base, rng)
+		end
 	end
 	for index = 0, 7 do
 		local angle = math.rad(index * 45 + rng:NextNumber(-10, 10))
