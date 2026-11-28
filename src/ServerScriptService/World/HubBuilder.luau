@@ -251,9 +251,15 @@ function HubBuilder.build(heightAt: HeightAt)
 		local angle = math.rad(index * 60)
 		flowerBed(hub, center + Vector3.new(math.cos(angle) * 21, 0.5, math.sin(angle) * 21), index)
 	end
-	for index = 0, 2 do
-		local angle = math.rad(60 + index * 120)
-		flatDisc(hub, "Arena", 5, 0.3, center + Vector3.new(math.cos(angle) * 17, 0.3, math.sin(angle) * 17), SAND, Enum.Material.Sand)
+	-- Círculos grandes de arena con piedras encima, como en la referencia (fuera de casas, tienda y ruleta).
+	for index, angle in { math.rad(60), math.rad(300), math.rad(180) } do
+		local distance = if index == 3 then 44 else 42
+		local spot = center + Vector3.new(math.cos(angle) * distance, 0.3, math.sin(angle) * distance)
+		flatDisc(hub, "ArenaGrande", 10, 0.3, spot, SAND, Enum.Material.Sand)
+		for stone = 0, 5 do
+			local a = stone * math.pi / 3
+			flatDisc(hub, "PiedraArena", 1, 0.4, spot + Vector3.new(math.cos(a) * 5, 0.4, math.sin(a) * 5), Color3.fromRGB(150, 150, 160), Enum.Material.Slate)
+		end
 	end
 	for index = 0, 15 do
 		local angle = math.rad(index * 22.5)
