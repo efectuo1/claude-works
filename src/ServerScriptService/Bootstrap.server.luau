@@ -557,7 +557,8 @@ if wheel ~= nil and wheel:IsA("BasePart") then
 	prompt.ActionText = "Girar"
 	prompt.ObjectText = "Ruleta"
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 10
+	-- La ruleta cuelga alto sobre el poste: el botón debe llegar desde el suelo.
+	prompt.MaxActivationDistance = math.max(10, wheel.Position.Y + 14)
 	prompt.Parent = wheel
 	prompt.Triggered:Connect(function(player: Player)
 		local result = roulette.spin(player.UserId)

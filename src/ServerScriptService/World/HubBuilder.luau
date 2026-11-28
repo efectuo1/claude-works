@@ -41,17 +41,7 @@ local FOUNTAIN_BLUE_DARK = Color3.fromRGB(35, 90, 200)
 local WATER_COLOR = Color3.fromRGB(120, 220, 255)
 local WOOD = Color3.fromRGB(240, 210, 160) -- madera clara, como en la referencia
 local PLANK_DARK = Color3.fromRGB(190, 150, 100)
-local ROCK_COLORS = {
-	Color3.fromRGB(120, 105, 98),
-	Color3.fromRGB(140, 122, 112),
-	Color3.fromRGB(105, 95, 90),
-}
 local ROOF = Color3.fromRGB(225, 55, 55)
-local TERRACE_GREENS = {
-	Color3.fromRGB(95, 225, 95),
-	Color3.fromRGB(70, 190, 80),
-	Color3.fromRGB(120, 240, 105),
-}
 local DOOR = Color3.fromRGB(120, 70, 40)
 local TREE_TRUNK = Color3.fromRGB(150, 90, 50)
 local TREE_LEAVES = {
@@ -240,61 +230,6 @@ local function fountain(hub: Instance, center: Vector3)
 	emitter(hub, center + Vector3.new(0, top + 1.4, 0), WATER_COLOR, 14, 5, 1.6, 22)
 end
 
--- Paso hacia el puente (este, eje X): sin terrazas, roca ni setos en esta franja.
-local function inGate(x: number, z: number): boolean
-	return x > 0 and math.abs(z) < 7
-end
-
--- Terrazas verdes en el borde del hub: tres anillos de bloques que bajan hacia fuera,
--- como escalones de hierba. Cada bloque va tangente al círculo y se apoya en la superficie real.
-local TERRACES = {
-	{ radius = 48, rise = 2.4 }, -- la más alta, la de dentro
-	{ radius = 53, rise = 1.4 },
-	{ radius = 58, rise = 0.5 }, -- la más baja, la de fuera
-}
-local function terraces(hub: Instance, heightAt: HeightAt)
-	local depth = 5
-	for level, ring in TERRACES do
-		local count = math.floor(2 * math.pi * ring.radius / 6.2)
-		local width = 2 * math.pi * ring.radius / count * 1.04
-		local color = TERRACE_GREENS[level]
-		for index = 0, count - 1 do
-			local angle = index * 2 * math.pi / count
-			local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
-			local x = dir.X * ring.radius
-			local z = dir.Z * ring.radius
-			if not inGate(x, z) then
-				local top = heightAt(x, z) + ring.rise
-				local size = Vector3.new(width, ring.rise + 2, depth)
-				local center = Vector3.new(x, top - size.Y / 2, z)
-				-- Yaw que deja el lado largo (X) tangente al círculo.
-				local yaw = -angle - math.pi / 2
-				part(hub, `Terraza{level}`, size, CFrame.new(center) * CFrame.Angles(0, yaw, 0), color, Enum.Material.Grass)
-			end
-		end
-	end
-end
-
--- Acantilado de roca gris-marrón justo por fuera de las terrazas, como en la referencia.
--- Bloques irregulares de altura variable que sobresalen del suelo y le dan volumen a la isla.
-local function cliff(hub: Instance, heightAt: HeightAt)
-	local radius = 63
-	local count = math.floor(2 * math.pi * radius / 5.5)
-	local width = 2 * math.pi * radius / count * 1.1
-	for index = 0, count - 1 do
-		local angle = index * 2 * math.pi / count
-		local x = math.cos(angle) * radius
-		local z = math.sin(angle) * radius
-		if not inGate(x, z) then
-			local rise = 1.2 + (index % 3) * 0.6
-			local top = heightAt(x, z) + rise
-			local size = Vector3.new(width, 6, 4.5)
-			local center = Vector3.new(x, top - 3, z)
-			part(hub, "Roca", size, CFrame.new(center) * CFrame.Angles(0, -angle - math.pi / 2, 0), ROCK_COLORS[index % #ROCK_COLORS + 1], Enum.Material.Slate)
-		end
-	end
-end
-
 -- Zonas ocupadas por edificios: ni árboles ni setos dentro.
 local function blocked(x: number, z: number): boolean
 	if x < -18 and x > -36 and z > -24 and z < 24 then
@@ -369,8 +304,6 @@ function HubBuilder.build(heightAt: HeightAt)
 	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, -16), Vector2.new(HOUSE_X + PAD_OFFSET, 16), heightAt)
 	road(hub, Vector2.new(HOUSE_X + PAD_OFFSET, 0), Vector2.new(-4, 0), heightAt)
 	road(hub, Vector2.new(4, 0), Vector2.new(SHOP_X - 2, 0), heightAt)
-	-- Del lado este de la tienda hasta el arco del puente (el paso hacia los campos de mobs).
-	road(hub, Vector2.new(34, 0), Vector2.new(68, 0), heightAt)
 
 	-- Casas de modalidad al oeste, con la puerta hacia la fuente y un pad delante.
 	for _, mode in MODE_HOUSES do
@@ -444,41 +377,17 @@ function HubBuilder.build(heightAt: HeightAt)
 		flatDisc(hub, "Parterre", 2, 0.3, position, Color3.fromRGB(255, 120, 180), Enum.Material.Grass)
 	end
 
-	-- Árboles de copa redonda en un anillo entre la plaza y las terrazas (30° de separación, desfasados
-	-- de las arenas para no pisarlas). La isla es compacta: no hay árboles fuera de este anillo.
+	-- Árboles de copa redonda en un anillo entre la plaza y las casas (30° de separación, desfasados
+	-- de las arenas para no pisarlas). El borde de la isla ya lleva sus propias terrazas: aquí no hay más.
 	for index = 0, 11 do
 		local angle = math.rad(index * 30 + 15)
 		local radius = rng:NextNumber(41, 43)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		if not blocked(x, z) and not inGate(x, z) then
+		if not blocked(x, z) then
 			tree(hub, Vector3.new(x, heightAt(x, z), z), rng)
 		end
 	end
-
-	-- Setos redondos por fuera del acantilado: cierran el hub como un islote verde.
-	for index = 0, 35 do
-		local angle = math.rad(index * 10 + rng:NextNumber(-2, 2))
-		local radius = rng:NextNumber(70, 73)
-		local x = math.cos(angle) * radius
-		local z = math.sin(angle) * radius
-		if not inGate(x, z) then
-			bush(hub, Vector3.new(x, heightAt(x, z), z), rng)
-		end
-	end
-
-	-- Arco de entrada al puente del campo de mobs: dos postes, travesaño y cartel de cara a la plaza.
-	local archX = 66
-	local archBase = heightAt(archX, 0)
-	for _, side in { -1, 1 } do
-		part(hub, "ArcoPoste", Vector3.new(1.4, 11, 1.4), CFrame.new(archX, archBase + 5.5, side * 6.5), DOOR, Enum.Material.Wood)
-	end
-	part(hub, "ArcoTravesano", Vector3.new(1.8, 1.6, 15), CFrame.new(archX, archBase + 11, 0), DOOR, Enum.Material.Wood)
-	local archSign = part(hub, "ArcoCartel", Vector3.new(11, 3, 0.4), CFrame.new(archX - 1, archBase + 8.6, 0) * CFrame.Angles(0, math.rad(90), 0), BOARD_COLOR)
-	sign(archSign, "CAMPOS DE BRASA")
-
-	terraces(hub, heightAt)
-	cliff(hub, heightAt)
 
 	-- Luciérnagas repartidas por la plaza.
 	for index = 0, 7 do
@@ -487,6 +396,20 @@ function HubBuilder.build(heightAt: HeightAt)
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
 		emitter(hub, Vector3.new(x, heightAt(x, z) + 3, z), Color3.fromRGB(240, 255, 120), 2, 1, 4, 180)
+	end
+
+	-- Todo se construye en tamaño base y al final se agranda alrededor de la fuente: la plaza ocupa más
+	-- isla, como en la referencia, y las proporciones no cambian. Los botones de interacción se ajustan aparte.
+	local reach: { [ProximityPrompt]: number } = {}
+	for _, descendant in hub:GetDescendants() do
+		if descendant:IsA("ProximityPrompt") then
+			reach[descendant] = descendant.MaxActivationDistance
+		end
+	end
+	hub.WorldPivot = CFrame.new(center)
+	hub:ScaleTo(MapLayout.HUB_SCALE)
+	for prompt, distance in reach do
+		prompt.MaxActivationDistance = distance * MapLayout.HUB_SCALE
 	end
 end
 
